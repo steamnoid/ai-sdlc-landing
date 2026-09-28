@@ -1,15 +1,18 @@
 #!/bin/sh
 # The one command. Its exit code is the verdict.
 #
-# **Four checks, ordered fastest first, stopping at the first refusal.** A mistake in a
-# space is found in under a second rather than after the suite. A gate that can be run
-# partially is not a gate: four commands, run two of them, and the result is reported as a
-# pass — which is what happened three times in the page this repository is a view of.
+# **Five checks, ordered fastest first, stopping at the first refusal.** A mistake in a space
+# is found in under a second rather than after the suite. A gate that can be run partially is
+# not a gate: four commands, run two of them, and the result is reported as a pass — which is
+# what happened three times in the page this repository grew out of.
 #
-# **There is no formatter in it, on purpose.** A formatter is a style this repository has
-# not chosen, and a check with no rule behind it is this repository's own argument turned
-# round: a rule with no gate is a wish, and so is a gate with no rule. What `astro check`
-# refuses is a mistake; what a formatter rewrites is a preference.
+# **The suite runs before the collectors and the collectors before the build**, because each
+# of them is slower than the one before it and a failure in an early one says more about what
+# to look at.
+#
+# **There is no formatter in it, on purpose.** A formatter is a style this repository has not
+# chosen, and a check with no rule behind it is this repository's own argument turned round: a
+# rule with no gate is a wish, and so is a gate with no rule.
 set -e
 
 the_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
@@ -18,15 +21,8 @@ cd "$the_root"
 echo "== the page's own tests, which reach no network"
 npm run --silent test
 
-echo "== the collectors' own tests, which reach no network"
-npm run --silent test:collectors
-
-echo "== read the four projects"
-if [ "$1" = "--without-the-suites" ]; then
-	npm run --silent collect -- --without-the-suites
-else
-	npm run --silent collect
-fi
+echo "== read the four repositories"
+npm run --silent collect
 
 echo "== build the page from what was read"
 npm run --silent build

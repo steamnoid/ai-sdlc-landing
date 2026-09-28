@@ -1,0 +1,182 @@
+name: the page
+
+# A page that only updates when somebody pushes it goes stale the moment a project moves,
+# and this is the whole reason the page exists. It reads the four repositories every hour
+# and publishes only when a fact on it changed.
+#
+# **Seventeen past the hour, and hourly rather than daily.** GitHub documents that a
+# scheduled workflow can be delayed and that under load some queued jobs are dropped — and
+# :00 is the minute everybody else asks for, because everybody writes hourly schedules with
+# `0 0 * * *`. Hourly rather than daily because a job that is dropped is an hour of
+# staleness rather than a day of it.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Pages keeps only the newest deployment, so a second run cancels the first rather than
+# deploying out of order.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  THE_BRANCH: main
+  THE_SITE: https://steamnoid.github.io/ai-sdlc-landing
+  # The four repositories, as owner/name and the directory each is checked out in. The page
+  # holds no fact about any of them, so this list of addresses is the only hand-written
+  # thing in the run and it is a list of where to look rather than a claim about what is
+  # there.
+  THE_PROJECTS: >-
+    ai-sdlc-os:python ai-sdlc-os-plus:python ai-sdlc-app-rs:rust ai-sdlc-app-rs-plus:rust
+
+jobs:
+  collect:
+    name: Read the four repositories
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # A Python project's own domain imports pydantic, and the collector imports that
+      # project's code in this process — so `uv` and one environment per project are both
+      # needed before anything is read. The two Rust projects need no setup at all, and that
+      # asymmetry is why the install step says which projects it is for.
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Check out the four repositories
+        run: |
+          set -euo pipefail
+          for one in $THE_PROJECTS; do
+            the_name="${one%%:*}"
+            the_language="${one##*:}"
+            git clone --quiet --branch "$THE_BRANCH" "https://github.com/steamnoid/$the_name.git" "build/$the_name"
+            echo "::group::$the_name ($the_language)"
+            if [ "$the_language" = "python" ]; then
+              uv sync --all-extras --project "build/$the_name"
+            fi
+            echo "::endgroup::"
+          done
+
+      # **A checkout of a fetched ref is detached and git calls itself `HEAD`.** The branch
+      # that was asked for is the fact a reader wants, so the collector knows it because it
+      # is the one that fetched it.
+      - name: Read them, and run their own suites
+        run: |
+          set -euo pipefail
+          the_family="["
+          the_first="yes"
+          for one in $THE_PROJECTS; do
+            the_name="${one%%:*}"
+            the_language="${one##*:}"
+            [ "$the_first" = "yes" ] || the_family="$the_family,"
+            the_first="no"
+            the_family="$the_family{\"owner\":\"steamnoid\",\"name\":\"$the_name\",\"language\":\"$the_language\",\"interpreter\":\"python3\"}"
+          done
+          the_family="$the_family]"
+          echo "$the_family" > /tmp/the_family.json
+          node scripts/ask_the_family.mjs \
+            --where "$GITHUB_WORKSPACE/build" \
+            --out src/state/the_family.json \
+            --family "$(cat /tmp/the_family.json)"
+
+      - name: The page's own tests, which reach no network
+        run: npm run --silent test:collectors
+
+      - name: Has anything changed on the page
+        run: node scripts/has_anything_changed.mjs --state src/state/the_family.json
+
+      # **The directory, not the file.** An artifact of one file has that file's directory
+      # as its root, so the download lands beside the committed copy — and the first
+      # deployment of the page this one grew out of published months-old numbers while every
+      # step reported success.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: the-state
+          path: src/state
+          retention-days: 7
+
+  build:
+    name: Build the page
+    needs: collect
+    # A run that found the family exactly where it was would otherwise publish a
+    # byte-identical artifact four times a day. A skipped build is still a green run.
+    if: needs.collect.outputs.has_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: the-state
+          path: src/state
+
+      - run: npm ci
+
+      - name: The page's tests, against the state that was read
+        run: npm run --silent test:page
+
+      - run: npm run --silent build
+
+      - uses: actions/configure-pages@v5
+        with:
+          # Without this a repository that has never had a Pages site fails to configure,
+          # and the first deployment is the one that discovers it.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/deploy-pages@v4
+
+  keepalive:
+    name: Keep the schedule alive
+    needs: deploy
+    # **GitHub switches scheduled workflows off in a public repository after 60 days without
+    # activity, and a page that rebuilds itself never receives a commit.** This job pushes one
+    # empty commit once the silence passes 45 days — one a month rather than two hundred a
+    # year, so the history carries the mechanism instead of burying it. If the page ever stops
+    # updating, look at this job before anything else.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push a commit if the silence is nearly long enough
+        run: |
+          set -euo pipefail
+          days_since=$(git log -1 --format=%cI | awk -v now="$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{
+            print int(( systime(mktime(substr(now,1,19),1,1,1,1,1)) - systime(mktime(substr($0,1,19),1,1,1,1,1)) ) / 86400)
+          }')
+          echo "the last commit was $days_since days ago"
+          if [ "$days_since" -ge 45 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "chore(page): the schedule kept itself alive"
+            git push
+          fi

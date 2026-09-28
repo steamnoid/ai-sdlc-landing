@@ -123,17 +123,43 @@ the branch as everybody else sees it, which is what the page is about.
 # The parts that are not built yet
 
 Written down because a repository that lists its intentions next to its code is a
-repository whose reader can tell which is which.
+repository whose reader can tell which is which. **The list is kept short on purpose**: a
+section that grows as the project grows is a section that gets skimmed, and this one is
+skimmed precisely when somebody is about to add the thing it does not mention.
 
 | | |
 |---|---|
-| the domain of a Python project | slice 1 — the import, and the refusals |
-| the domain of a Rust project | slice 2 — read from source, refusing rather than guessing |
-| the verdict about the family | slice 3 — the one thing that could not exist if the projects were unrelated |
-| the documents | slice 4 — glossary, phases, licence, commands |
-| the suites | slice 5 — four runners, two toolchains, hourly |
-| the lineage | slice 6 — `SOURCES.lock` and the licence headers |
-| the eight sections of the page | slice 8 |
+| the suites, per project kind | **built** — `uv run pytest -q` and `cargo test --no-fail-fast`, both run in the build |
+| the lineage | **built** — two of the three edges the family records, and the two projects that record none |
+| the page | **built** — the family, the one domain, the four conventions, the suites, the phases, the lineage |
+| the GitHub API | not read. Stars, forks, check runs and pull requests are on the page this grew out of and not on this one, because a claim that needs a network stops being checkable offline |
+| `github.read_file`-style reading at a ref | not built, and not wanted here — this page reads checkouts, not revisions |
+| per-phase delivery dates | not built. The phases are read and their marks reported; nothing says when a phase moved |
+| an activity history | not built. The commits of the four are not on the page, because a page that rebuilds hourly would republish a history it read fresh each time and the reader would learn nothing from the difference |
+
+**And the two things that are deliberately not here.** A `SOURCES.lock` for this page, because
+it is a view and pins a *source* — the family itself is four changing repositories, and a hash
+of any one of them would be a number that is wrong the moment a cycle lands. And a formatter in
+the gate, because a check with no rule behind it is this repository's own argument turned
+round: a rule with no gate is a wish, and so is a gate with no rule.
+
+---
+
+# What the four projects said, and what their trees hold
+
+**Kept here rather than on the page, because the page may only print facts.** The full
+version, held against the trees by a test on every run, is
+[`docs/what-the-documents-claim.md`](docs/what-the-documents-claim.md). In short:
+
+- **All four declare the same domain** — six stages, five roles, seven legal moves — and say
+  it four different ways. That is the finding the page exists to publish.
+- **Three of the four name no other project.** They write about a sibling project and do not
+  say which one. `ai-sdlc-app-rs` is the only one that records where it came from.
+- **Two of the four mark no phase done at all**, while phases 0 to 2 of both are delivered.
+  A reader that read a phase's state out of a strikethrough would have reported ten phases
+  each as undelivered, which is the one direction of error a reader is least likely to check.
+- **The three `+`-shaped READMEs are stale**; `ai-sdlc-os`'s is not. The difference is which
+  project has a test that compares the two.
 
 ---
 
@@ -144,3 +170,17 @@ over cleverness, and code that mirrors the domain — are in the `AGENTS.md` of
 [`ai-sdlc-os`](https://github.com/steamnoid/ai-sdlc-os), and this repository is written
 against them rather than restating them. The two rules above are the only ones local to
 it, because they are the only two a view of other people's work needs.
+
+**Two habits this repository's own cycles needed, recorded because both cost a cycle here.**
+
+**A shell that accepts the absence cannot prove the rule.** The first RED of every cycle in
+this repository failed on a missing file, and twice one of its tests was *green* for that
+reason — a reader that prints nothing and a reader that leaves no bytecode behind are both
+true of a file that was never written. The collector is now a refusing shell first, and the
+tests fail on assertions.
+
+**A count that understates a failure is a count nobody should read.** A throw in a `describe`
+body aborts its suite, its tests never run, and this runner printed `19 passed, 0 failed`
+with a red suite on the screen. The exit code was correct and is the only thing the gate
+reads; the tests now ask inside each test so the number a person reads is the number that
+happened.
