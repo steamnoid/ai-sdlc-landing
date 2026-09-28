@@ -183,6 +183,25 @@ if (!existsSync(where_the_state_lives)) {
 			}
 		});
 
+		it("never puts a word next to a number it does not have", () => {
+			// **A number substituted into a sentence, with no rule for the case where there is
+			// none, produces a sentence nobody wrote.** `ai-sdlc-app-rs` does not compile, so its
+			// suite printed no counts at all, and the page said "no counts passed" — which is not a
+			// claim about anything. The word belongs to the sentence only when there is a number for
+			// it to sit in.
+			assert.ok(
+				!/no counts\s+passed/i.test(the_words),
+				"the page put the word `passed` next to a count it does not have. A number substituted " +
+					"into a sentence with no rule for its absence produces a sentence nobody wrote, and " +
+					"this project is one of the four that has a suite which printed nothing at all.",
+			);
+			assert.ok(
+				!/\bnull\s+(passed|failed|tests|projects)\b/i.test(the_words),
+				"the page put a word next to a literal null. `null` is what a field nobody read holds, " +
+					"and printing it beside a word is printing the absence rather than saying it.",
+			);
+		});
+
 		it("publishes the state beside the page, so every number can be checked", () => {
 			const the_published = join(at, "dist", "the_family.json");
 			assert.ok(
