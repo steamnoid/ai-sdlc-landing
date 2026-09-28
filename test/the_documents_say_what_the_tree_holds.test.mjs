@@ -31,6 +31,7 @@ import { describe, it } from "node:test";
 
 import {
 	how_the_documents_mark_a_phase_as_done,
+	what_the_licence_says,
 	what_the_phases_say,
 } from "../src/page/what_the_documents_say.mjs";
 
@@ -78,7 +79,8 @@ describe("a phase marked in the two ways the family marks one", () => {
 });
 
 describe("a backlog table, read out of a document", () => {
-	const the_phases = what_the_phases_say(A_BACKLOG_TABLE, "AGENTS.md");
+	const the_reading = what_the_phases_say(A_BACKLOG_TABLE, "AGENTS.md");
+	const the_phases = the_reading.phases;
 
 	it("reads every row that declares a phase number", () => {
 		assert.deepEqual(
@@ -92,6 +94,15 @@ describe("a backlog table, read out of a document", () => {
 	it("carries the slice and the gate of each, because the page prints both", () => {
 		assert.equal(the_phases[1].the_slice, "~~the domain: entities, the state machine~~ **done**");
 		assert.match(the_phases[1].the_gate, /seventh/);
+	});
+
+	it("says which mark each phase carries, so a reader can see the claim behind the verdict", () => {
+		assert.deepEqual(
+			the_phases.map((a_phase) => a_phase.how_it_was_marked),
+			["in neither way", "a strikethrough and the word done", "in neither way"],
+			"the answer does not say which mark a verdict came from. The verdict is a finding about the " +
+				"document's claim, and a reader who cannot see the claim cannot check the finding.",
+		);
 	});
 
 	it("gives each phase a verdict that follows its mark and nothing else", () => {
