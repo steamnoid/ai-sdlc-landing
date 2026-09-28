@@ -13,7 +13,7 @@
  */
 
 import { strict as assert } from "node:assert";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,18 +27,20 @@ const where_the_state_lives = join(at, "src", "state", "the_family.json");
 
 describe("a page built with no state", () => {
 	let the_words = "";
+	let the_markup = "";
+	let where_it_went = "";
+
+/** A build directory that is taken away again when this block is over. */
+	const a_directory_to_build_into = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-"));
+	after(() => rmSync(a_directory_to_build_into, { recursive: true, force: true }));
 
 	before(() => {
-		assert.equal(
-			existsSync(where_the_state_lives),
-			false,
-			`there is a state at ${where_the_state_lives}, and this test is about a build with ` +
-				"none. A committed state is a number nobody checked — delete it, or run this against a tree " +
-				"that has none.",
-		);
-		const where_it_went = build_the_page(at, mkdtempSync(join(tmpdir(), "ai-sdlc-landing-")));
+		// The state in the tree is moved aside rather than required to be absent, so this test
+		// means the same thing on a fresh clone and on a working tree a collector has already
+		// read — which is where it started failing, after the first real run.
+		where_it_went = build_the_page(at, a_directory_to_build_into, { none: true });
 		the_words = the_words_on_the_page(where_it_went);
-		after(() => rmSync(dirname(where_it_went), { recursive: true, force: true }));
+		the_markup = readFileSync(where_it_went, "utf8");
 	});
 
 	it("says that it has nothing to say, in words", () => {
@@ -72,10 +74,15 @@ describe("a page built with no state", () => {
 	});
 
 	it("does not print a section heading for a section it has nothing for", () => {
-		for (const a_heading of ["How they differ", "Where each one stands"]) {
+		// **The markup, not the words.** A navigation link carries the same text as a section
+		// and is present on every build, so a test that searched the page's text for a heading
+		// failed on a build that had rendered no sections at all — and would have kept
+		// failing for a reason that has nothing to do with what it is checking.
+		const the_headings = the_markup.match(/<h2[^>]*>([^<]*)</g) ?? [];
+		for (const a_heading_text of ["How they differ", "One domain, four times over", "The family"]) {
 			assert.ok(
-				!the_words.includes(a_heading),
-				`the page printed the heading "${a_heading}" with no state behind it. A heading with ` +
+				!the_headings.some((a_heading) => a_heading.includes(a_heading_text)),
+				`the page printed the heading "${a_heading_text}" with no state behind it. A heading with ` +
 					"nothing under it reads as a section that was considered and found empty, which is " +
 					"exactly the claim the page must not make.",
 			);
@@ -84,6 +91,9 @@ describe("a page built with no state", () => {
 });
 
 describe("a page built with a state", () => {
+	const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-"));
+	after(() => rmSync(a_directory, { recursive: true, force: true }));
+
 	const a_state = {
 		the_family: [
 			{
@@ -96,27 +106,24 @@ describe("a page built with a state", () => {
 	};
 
 	it("prints the project it read, and nothing about the ones it did not", () => {
-		const where_it_went = build_the_page(at, mkdtempSync(join(tmpdir(), "ai-sdlc-landing-")), a_state);
+		const where_it_went = build_the_page(at, a_directory, { write: a_state });
 		const the_words = the_words_on_the_page(where_it_went);
-		after(() => rmSync(dirname(where_it_went), { recursive: true, force: true }));
 		assert.match(the_words, /ai-sdlc-os/);
 		assert.doesNotMatch(the_words, /no state/i);
 	});
 });
 
 describe("the page does not read the state file at build time when it is given one", () => {
+	const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-"));
+	after(() => rmSync(a_directory, { recursive: true, force: true }));
+
 	it("prints a project that is not on disk anywhere in this repository", () => {
-		const where_it_went = build_the_page(
-			at,
-			mkdtempSync(join(tmpdir(), "ai-sdlc-landing-")),
-			{
-				the_family: [
-					{ owner: "nobody", name: "a-project-that-was-never-checked-out", was_read: true },
-				],
+		const where_it_went = build_the_page(at, a_directory, {
+			write: {
+				the_family: [{ owner: "nobody", name: "a-project-that-was-never-checked-out", was_read: true }],
 			},
-		);
+		});
 		const the_words = the_words_on_the_page(where_it_went);
-		after(() => rmSync(dirname(where_it_went), { recursive: true, force: true }));
 		assert.match(
 			the_words,
 			/a-project-that-was-never-checked-out/,

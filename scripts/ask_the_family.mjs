@@ -132,9 +132,16 @@ export function read_one_project(a_project, where_they_are) {
 	};
 }
 
+/** Where the page's own code is, which it links to and which the state has to account for. */
+const THIS_PAGE = { owner: "steamnoid", name: "ai-sdlc-landing" };
+
 /** The four projects, and the state the page is built from. */
 export function collect_the_family(the_family, where_they_are) {
 	return {
+		// **The page's own repository is in the state rather than typed into the template**, so a
+		// test can hold that every repository the page links to is one the state mentions. A page
+		// that links to itself with a hand-written address is a link nothing can check.
+		this_page: { ...THIS_PAGE, url: `https://github.com/${THIS_PAGE.owner}/${THIS_PAGE.name}` },
 		the_family: the_family.map((a_project) => read_one_project(a_project, where_they_are)),
 		the_build: { read_at: new Date().toISOString() },
 	};

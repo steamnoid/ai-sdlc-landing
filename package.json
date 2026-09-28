@@ -11,9 +11,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test test/",
-    "test:collectors": "node --test test/the_python_domain_is_what_the_page_says.test.mjs test/the_rust_domain_is_what_the_page_says.test.mjs test/what_the_family_has_in_common.test.mjs test/what_the_page_says.test.mjs",
-    "test:page": "node --test test/the_page_says_only_what_the_state_says.test.mjs",
+    "test": "node --test --test-concurrency=1 test/",
+    "test:collectors": "node --test --test-concurrency=1 test/the_python_domain_is_what_the_page_says.test.mjs test/the_rust_domain_is_what_the_page_says.test.mjs test/what_the_family_has_in_common.test.mjs test/the_documents_say_what_the_tree_holds.test.mjs test/the_family_is_read_one_project_at_a_time.test.mjs",
+    "test:page": "node --test --test-concurrency=1 test/the_page_says_only_what_the_state_says.test.mjs test/the_page_says_it_has_nothing_to_say.test.mjs",
     "collect": "node scripts/ask_the_family.mjs --where ../ --run-the-suites --github-api \"${GITHUB_API:-https://api.github.com}\"",
     "build:with-state": "npm run collect && astro build",
     "gate": "npm run test && npm run collect && astro build"

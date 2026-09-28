@@ -20,17 +20,26 @@ const where_the_page_lands = "index.html";
 const where_the_state_lives = join("src", "state", "the_family.json");
 
 /**
- * Build the page from `at`, optionally with a state, and return the built HTML's path.
+ * Build the page from `at` and return the built HTML's path.
  *
- * The state is removed afterwards whatever happens, because a test that leaves one
- * behind turns every later test's "the state is absent" premise into a lie.
+ * **What to do about the state is the third argument, and it has three answers** because
+ * the suite needs all three: leave whatever the tree has, write one, or build as though
+ * there is none. The last one is what the first test of this repository needs, and it used
+ * to be the only one — so the suite passed on a fresh clone and failed the moment a
+ * collector had run, which is the shape of a test that only ever sees one world.
+ *
+ * **The tree is put back whatever happens**, and a test that leaves a state behind turns
+ * every later test's premise into a lie.
  */
-export function build_the_page(at, a_directory_to_build_into, the_state_to_write = null) {
-	const there_was_a_state = existsSync(join(at, where_the_state_lives));
-	const what_was_there = there_was_a_state ? readFileSync(join(at, where_the_state_lives), "utf8") : null;
+export function build_the_page(at, a_directory_to_build_into, what_to_do_about_the_state = {}) {
+	const the_state_file = join(at, where_the_state_lives);
+	const there_was_a_state = existsSync(the_state_file);
+	const what_was_there = there_was_a_state ? readFileSync(the_state_file, "utf8") : null;
 
-	if (the_state_to_write !== null) {
-		writeFileSync(join(at, where_the_state_lives), `${JSON.stringify(the_state_to_write, null, "\t")}\n`);
+	if (what_to_do_about_the_state.none === true) {
+		rmSync(the_state_file, { force: true });
+	} else if ("write" in what_to_do_about_the_state) {
+		writeFileSync(the_state_file, `${JSON.stringify(what_to_do_about_the_state.write, null, "\t")}\n`);
 	}
 
 	try {
@@ -44,11 +53,9 @@ export function build_the_page(at, a_directory_to_build_into, the_state_to_write
 		}
 		return join(a_directory_to_build_into, where_the_page_lands);
 	} finally {
-		if (the_state_to_write !== null || there_was_a_state) {
-			rmSync(join(at, where_the_state_lives), { force: true });
-		}
+		rmSync(the_state_file, { force: true });
 		if (what_was_there !== null) {
-			writeFileSync(join(at, where_the_state_lives), what_was_there);
+			writeFileSync(the_state_file, what_was_there);
 		}
 	}
 }

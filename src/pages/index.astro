@@ -3,24 +3,52 @@
  * The page. It prints what the state says and nothing else.
  *
  * **Every number on this page was read out of a repository by a machine.** There is no
- * hard-coded stage, role, test count, phase or commit here, and there is a test that
- * holds this true: the state is a separate file written by `scripts/ask_the_family.mjs`,
- * and a fact that is not in that file cannot appear here.
+ * hard-coded stage, role, phase or commit here, and `test/the_page_says_only_what_the_
+ * state_says.test.mjs` holds this true: the state is a separate file written by
+ * `scripts/ask_the_family.mjs`, and a fact that is not in that file cannot appear here.
  *
- * **This page is about four repositories rather than one**, and that changes what the
- * first rule has to survive. The page it grew out of refuses to print a section it
- * could not read; here one project failing to answer must not take the other three off
- * the page. So the rule has a second half: **a project is read, or the page says in
- * words that it could not be.**
+ * **This page is about four repositories rather than one**, and that is why the first
+ * rule needed a second half: **a project is read, or the page says in words that it
+ * could not be.** A project that could not be read is printed with its reason and with
+ * no domain at all, rather than dropped — a page that dropped it would be telling a
+ * reader the family has three members.
  *
  * **What is written by hand is only what the repositories cannot refute**: the pitch,
  * and who to write to. A number somebody typed is a number that goes stale quietly.
  */
 import the_state from "../state/the_family.json";
+import { what_the_family_declares } from "../page/what_the_family_declares.mjs";
 import { a_number_or, what_the_family_says } from "../page/what_the_page_says.mjs";
 
 const the_family = what_the_family_says(the_state);
+const the_domain = what_the_family_declares(the_state);
 const there_is_something_to_say = the_family.verdict !== "nothing to say";
+
+/** The stages of the first project that was read, which are the family's stages. */
+const the_stages = the_domain.the_projects.find((a_project) => a_project.was_read)?.stages ?? [];
+const the_moves = the_domain.the_projects.find((a_project) => a_project.was_read)?.moves ?? [];
+
+/** A markdown cell as plain text: the emphasis marks gone, a link shown as its address. */
+const as_plain_text = (a_cell) =>
+	String(a_cell ?? "")
+		.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+		.replace(/\*\*|~~/g, "")
+		.replace(/`/g, "")
+		.trim();
+
+const siteUrl = "https://steamnoid.github.io/ai-sdlc-landing";
+/**
+ * When the state was read, or that it was never read.
+ *
+ * **The provenance line is a fact and the stand-in has none**, so a build with no state has
+ * to build. The page read `the_state.the_build.read_at` unconditionally at first and could
+ * not be built at all on a fresh clone — which is the one build that has to work, because
+ * it is the one that proves the page can say it has nothing.
+ */
+const when_was_it_read = the_state.the_build?.read_at
+	? new Date(the_state.the_build.read_at).toISOString().slice(0, 16).replace("T", " ") + " UTC"
+	: null;
+const how_many_read = the_domain.the_projects.filter((a_project) => a_project.was_read).length;
 ---
 
 <html lang="en">
@@ -31,40 +59,330 @@ const there_is_something_to_say = the_family.verdict !== "nothing to say";
 		<title>ai-sdlc — four repositories, one domain</title>
 		<meta
 			name="description"
-			content="Four repositories building the same AI SDLC system in two languages, from the same six stages and the same table of legal moves. Every number on this page is read from a repository."
+			content="Four repositories building the same AI SDLC system in two languages. The same six stages, the same five roles, the same seven legal moves — and four different ways of saying so. Every fact is read from a repository."
 		/>
 		<meta name="author" content="Krzysztof Paliga" />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={siteUrl} />
+		<meta property="og:title" content="ai-sdlc — four repositories, one domain" />
 		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
 		<style>
 			@import "tailwindcss";
 		</style>
 	</head>
 	<body class="bg-[#fafaf9] text-zinc-900 antialiased selection:bg-zinc-900 selection:text-white">
-		<main class="max-w-3xl mx-auto px-6 py-16">
-			{
-				there_is_something_to_say ? (
-					<>
-						<h1 class="text-3xl font-semibold tracking-tight">The family</h1>
-						<ul class="mt-6 space-y-2">
-							{the_family.the_projects.map((a_project) => (
-								<li class="text-sm">
-									<a class="font-mono underline" href={`https://github.com/${a_project.owner}/${a_project.name}`}>
-										{a_project.owner}/{a_project.name}
-									</a>
-									<span class="text-zinc-500"> — {a_project.verdict}</span>
-									{a_project.why_not && <span class="text-zinc-500">: {a_project.why_not}</span>}
-								</li>
-							))}
-						</ul>
-					</>
-				) : (
-					<>
-						<h1 class="text-3xl font-semibold tracking-tight">No state, so nothing to say</h1>
-						<p class="mt-4 text-zinc-600 text-[15px] leading-7">{the_family.why_not}</p>
-						<p class="mt-6 text-zinc-500 text-sm">{a_number_or(0, "—")} projects read</p>
-					</>
-				)
-			}
-		</main>
+		<header class="sticky top-0 z-50 backdrop-blur bg-white/85 border-b border-zinc-200">
+			<div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+				<div class="flex items-center gap-2.5 min-w-0">
+					<div class="w-7 h-7 rounded-md bg-zinc-900 flex items-center justify-center text-white text-[10px] font-bold tracking-widest shrink-0">
+						ASD
+					</div>
+					<span class="text-sm font-semibold tracking-tight truncate">ai-sdlc</span>
+				</div>
+				<nav class="hidden md:flex items-center gap-6 text-sm text-zinc-600 shrink-0">
+					<a href="#family" class="hover:text-zinc-900 transition">The family</a>
+					<a href="#domain" class="hover:text-zinc-900 transition">One domain</a>
+					<a href="#differ" class="hover:text-zinc-900 transition">How they differ</a>
+					<a href="#truth" class="hover:text-zinc-900 transition">How this page works</a>
+				</nav>
+				<a
+					href="https://github.com/steamnoid/ai-sdlc-landing"
+					target="_blank"
+					rel="noopener"
+					class="text-sm px-3.5 py-1.5 rounded-full bg-zinc-900 text-white hover:bg-zinc-800 transition font-medium shrink-0"
+				>
+					This page
+				</a>
+			</div>
+		</header>
+
+		{
+			there_is_something_to_say ? (
+				<main>
+					{/* Hero, and the one sentence that is about all four */}
+					<section class="max-w-6xl mx-auto px-6 pt-14 pb-10 md:pt-20 md:pb-14">
+						<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 text-xs text-zinc-600 mb-5">
+							<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+							Read from {how_many_read} of {the_domain.how_many_were_asked_about} repositories{when_was_it_read && `, ${when_was_it_read}`}
+						</div>
+						<h1 class="text-4xl md:text-5xl font-semibold tracking-tight leading-[1.05] max-w-3xl">
+							Four repositories.<br />
+							<span class="text-zinc-500">One domain, and four ways of writing it down.</span>
+						</h1>
+						<p class="mt-5 text-[17px] leading-7 text-zinc-600 max-w-2xl">
+							<span class="font-medium text-zinc-900">ai-sdlc</span> is a system that takes a public GitHub repository,
+							asks language models bounded questions about it, has a person approve every answer, and delivers a pull
+							request. It is being built four times over, in two languages, from the same specification. Everything below
+							was read out of the four repositories rather than written here.
+						</p>
+
+						<div
+							class={`mt-8 rounded-2xl border p-6 ${
+								the_domain.verdict === "they declare the same domain"
+									? "bg-white border-emerald-200"
+									: "bg-white border-amber-200"
+							}`}
+						>
+							<p class="text-xs uppercase tracking-wider text-zinc-500 mb-2">The verdict about all four</p>
+							<p class="text-2xl font-semibold tracking-tight">{the_domain.verdict}</p>
+							<p class="mt-2 text-[15px] text-zinc-600">
+								{how_many_read} of {the_domain.how_many_were_asked_about} repositories could be read, and their stages, roles
+								and legal moves were compared one against another. Conventions — how a stage is written, where the table
+								of moves lives — are laid out side by side rather than counted as agreement.
+							</p>
+							{the_domain.why_not && <p class="mt-3 text-sm text-amber-700">{the_domain.why_not}</p>}
+						</div>
+					</section>
+
+					{/* The four, and what could be read about each */}
+					<section id="family" class="bg-white border-y border-zinc-200 scroll-mt-14">
+						<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
+							<h2 class="text-2xl font-semibold tracking-tight">The family</h2>
+							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
+								A repository that could not be read is still here, with the reason. Dropping it would be telling you
+								the family has fewer members than it has.
+							</p>
+							<div class="mt-6 grid sm:grid-cols-2 gap-3">
+								{the_family.the_projects.map((a_project) => (
+									<div class="rounded-xl border border-zinc-200 p-5">
+										<div class="flex items-start justify-between gap-3">
+											<a
+												class="font-mono text-sm font-medium underline underline-offset-2"
+												href={a_project.url}
+												target="_blank"
+												rel="noopener"
+											>
+												{a_project.name}
+											</a>
+											<span
+												class={`shrink-0 px-2 py-0.5 rounded-full border text-[11px] font-medium ${
+													a_project.verdict === "read"
+														? "bg-emerald-50 border-emerald-200 text-emerald-800"
+														: "bg-amber-50 border-amber-200 text-amber-800"
+												}`}
+											>
+												{a_project.verdict}
+											</span>
+										</div>
+										<dl class="mt-4 grid grid-cols-2 gap-y-2 text-[13px]">
+											<dt class="text-zinc-500">Language</dt>
+											<dd class="font-mono">{a_project.language ?? "—"}</dd>
+											<dt class="text-zinc-500">Domain read by</dt>
+											<dd class="font-mono">{a_project.how_the_domain_was_read ?? "—"}</dd>
+											<dt class="text-zinc-500">Stages</dt>
+											<dd class="font-mono tabular-nums">
+												{a_number_or(a_project.what_its_code_declares?.stages.length, "—")}
+											</dd>
+											<dt class="text-zinc-500">Licence</dt>
+											<dd>{a_project.what_its_documents_say?.licence?.name ?? "no licence file"}</dd>
+										</dl>
+										{a_project.why_not && (
+											<p class="mt-3 text-[13px] text-amber-700 border-l-2 border-amber-200 pl-3">{a_project.why_not}</p>
+										)}
+									</div>
+								))}
+							</div>
+						</div>
+					</section>
+
+					{/* The one domain, and the four ways of saying it */}
+					{the_stages.length > 0 && (
+						<section id="domain" class="scroll-mt-14">
+							<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
+								<h2 class="text-2xl font-semibold tracking-tight">One domain, four times over</h2>
+								<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
+									These stages and these moves are not typed here. Two of the four are imported from the code that
+									declares them; two are read out of Rust source, and every name is a string literal lifted from that
+									project's own match rather than a rule applied to its variants.
+								</p>
+								<div class="mt-6 grid lg:grid-cols-3 gap-3">
+									<div class="rounded-2xl border border-zinc-200 bg-white p-5">
+										<p class="text-xs uppercase tracking-wider text-zinc-500 mb-3">Stages</p>
+										<ul class="space-y-1.5">
+											{the_stages.map((a_stage) => (
+												<li class="flex items-center justify-between gap-3 text-sm">
+													<code class="font-mono text-[12px] px-1.5 py-0.5 rounded bg-zinc-100 border border-zinc-200">
+														{a_stage.name}
+													</code>
+													<span class="text-[12px] text-zinc-500">
+														{a_stage.an_agent_must_be_holding_it ? "an agent holds it" : "no agent"}
+													</span>
+												</li>
+											))}
+										</ul>
+									</div>
+									<div class="rounded-2xl border border-zinc-200 bg-white p-5 lg:col-span-2">
+										<p class="text-xs uppercase tracking-wider text-zinc-500 mb-3">Where each may go</p>
+										<table class="w-full text-sm">
+											<tbody>
+												{the_moves.map((a_move) => (
+													<tr class="border-b border-zinc-100 last:border-0">
+														<td class="py-1.5 pr-4 font-mono text-[12px] whitespace-nowrap">{a_move.from}</td>
+														<td class="py-1.5 text-zinc-400">→</td>
+														<td class="py-1.5 font-mono text-[12px]">
+															{a_move.to.length === 0 ? (
+																<span class="italic text-zinc-400">nowhere — this is where a run ends</span>
+															) : (
+																a_move.to.join(", ")
+															)}
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+									</div>
+								</div>
+
+								<div class="mt-3 rounded-2xl border border-zinc-200 bg-white p-5">
+									<p class="text-xs uppercase tracking-wider text-zinc-500 mb-3">
+										The same three things, said four ways
+									</p>
+									<p class="text-[13px] text-zinc-600 mb-4 max-w-2xl">
+										The stage set, the table of legal moves and the invariant are one specification. How a project
+										writes them down is its own choice, and a page comparing four projects is exactly where those
+										choices become visible.
+									</p>
+									<div class="overflow-x-auto">
+										<table class="w-full text-sm">
+											<thead>
+												<tr class="border-b border-zinc-200 text-left text-xs text-zinc-500">
+													<th class="py-2 pr-4 font-medium">Repository</th>
+													<th class="py-2 pr-4 font-medium">Domain read by</th>
+													<th class="py-2 pr-4 font-medium">The table of moves is called</th>
+													<th class="py-2 pr-4 font-medium">A stage is written by</th>
+													<th class="py-2 font-medium">Who holds a stage is said by</th>
+												</tr>
+											</thead>
+											<tbody>
+												{the_domain.the_projects
+													.filter((a_project) => a_project.was_read)
+													.map((a_project) => (
+														<tr class="border-b border-zinc-100 last:border-0 align-top">
+															<td class="py-2 pr-4 font-mono text-[12px] whitespace-nowrap">{a_project.name}</td>
+															<td class="py-2 pr-4 text-zinc-600">{a_project.how_the_domain_was_read}</td>
+															<td class="py-2 pr-4 font-mono text-[12px]">{a_project.the_name_the_move_table_goes_by}</td>
+															<td class="py-2 pr-4 text-zinc-600">{a_project.how_a_stage_is_written ?? "—"}</td>
+															<td class="py-2 text-zinc-600">
+																{a_project.how_the_project_says_who_must_hold_a_stage ?? "—"}
+															</td>
+														</tr>
+													))}
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						</section>
+					)}
+
+					{/* How they differ, and where each one stands */}
+					<section id="differ" class="bg-white border-y border-zinc-200 scroll-mt-14">
+						<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
+							<h2 class="text-2xl font-semibold tracking-tight">How they differ</h2>
+							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
+								A phase's state is read from the mark its own document puts on it — a strikethrough, the word done, or
+								nothing at all. Two of the four projects mark nothing, and a page that reported a missing mark as
+								"not done" would be making a claim about the work that the document declined to make.
+							</p>
+							<div class="mt-6 grid sm:grid-cols-2 gap-3">
+								{/*
+							 * The family verdict's own projection carries the domain and nothing
+							 * else, so the phases come from the raw entries — the domain is what
+							 * the four are compared on, and the documents are a fact about each
+							 * project rather than about the family.
+							 */}
+							{the_family.the_projects.map((a_project) => {
+									const the_phases = a_project.what_its_documents_say?.phases ?? null;
+									const the_done = the_phases?.phases.filter((a_phase) => a_phase.verdict === "done") ?? [];
+									return (
+										<div class="rounded-2xl border border-zinc-200 p-5">
+											<p class="font-mono text-sm font-medium">{a_project.name}</p>
+											<p class="mt-3 text-[13px] text-zinc-600">
+												{the_phases === null ? (
+													"No backlog table was read from this project."
+												) : (
+													<>
+														<span class="text-zinc-900 tabular-nums">
+															{the_done.length} of {the_phases.phases.length}
+														</span>{" "}
+														phases carry a mark saying they are done
+														{the_done.length === 0 && (
+															<span class="text-amber-700">
+																{" "}
+																— this project marks none of them either way
+															</span>
+														)}
+													</>
+												)}
+											</p>
+											{the_phases !== null && (
+												<ul class="mt-3 space-y-1">
+													{the_phases.phases.map((a_phase) => (
+														<li class="text-[13px] flex gap-2 items-start">
+															<span class="font-mono text-zinc-400 tabular-nums shrink-0 w-5">{a_phase.number}</span>
+															<span class={a_phase.verdict === "done" ? "line-through text-zinc-400" : ""}>
+																{as_plain_text(a_phase.the_slice)}
+															</span>
+														</li>
+													))}
+												</ul>
+											)}
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					</section>
+
+					{/* The argument the page is making about itself */}
+					<section id="truth" class="scroll-mt-14">
+						<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
+							<h2 class="text-2xl font-semibold tracking-tight">How this page avoids lying</h2>
+							<div class="mt-6 grid md:grid-cols-2 gap-3">
+								<div class="rounded-2xl border border-zinc-200 bg-white p-5">
+									<p class="text-sm font-medium">Facts are read, not typed</p>
+									<ul class="mt-3 space-y-2 text-[14px] text-zinc-600 list-disc pl-4">
+										<li>The stages, roles and legal moves are imported from Python code and read out of Rust source.</li>
+										<li>No stage name is derived. Every one is a string literal from the project that declares it.</li>
+										<li>A phase's state comes from the mark in its own row, and the mark is printed beside the verdict.</li>
+									</ul>
+								</div>
+								<div class="rounded-2xl bg-zinc-900 text-zinc-50 p-5">
+									<p class="text-sm font-medium">Absences are printed as absences</p>
+									<ul class="mt-3 space-y-2 text-[14px] text-zinc-300 list-disc pl-4">
+										<li>A project that could not be read keeps its place, with the reason and no domain at all.</li>
+										<li>
+											A verdict about the family is refused unless every project was read — a claim about three is a
+											claim about three.
+										</li>
+										<li>A project that marks no phase done says so, rather than reporting zero as though it meant none.</li>
+									</ul>
+								</div>
+							</div>
+							<p class="mt-4 text-xs text-zinc-500">
+								{when_was_it_read ? `Read ${when_was_it_read}. ` : ""}A fact you cannot check against a repository is not on this page, and the
+								state every number came from is published beside it.
+							</p>
+						</div>
+					</section>
+				</main>
+			) : (
+				<main class="max-w-3xl mx-auto px-6 py-16">
+					<h1 class="text-3xl font-semibold tracking-tight">No state, so nothing to say</h1>
+					<p class="mt-4 text-zinc-600 text-[15px] leading-7">{the_family.why_not}</p>
+				</main>
+			)
+		}
+
+		<footer class="border-t border-zinc-200">
+			<div class="max-w-6xl mx-auto px-6 py-8 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+				<span>© 2026 Krzysztof Paliga</span>
+				<span class="ml-auto flex gap-3">
+					<span>No tracking</span>
+					<span>No cookies</span>
+					<span>Nothing hand-typed</span>
+				</span>
+			</div>
+		</footer>
 	</body>
 </html>
