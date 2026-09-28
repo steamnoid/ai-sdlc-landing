@@ -20,20 +20,14 @@
  * | `could not be read for N` | fewer than four were read | the ones that were read disagreeing |
  */
 
-export class TheFamilyCannotBeComparedError extends Error {
-	constructor(why) {
-		super(why);
-		this.name = "TheFamilyCannotBeComparedError";
-	}
-}
-
-/** The stages, roles and moves of one project, with the name the reader read them from. */
+/** The stages, roles and moves of one project, with the way the reader got at them. */
 function what_one_project_declares(a_project) {
 	return {
 		owner: a_project.owner,
 		name: a_project.name,
 		was_read: a_project.was_read === true,
 		why_not: a_project.why_not ?? null,
+		how_the_domain_was_read: a_project.how_the_domain_was_read ?? null,
 		stages: a_project.what_its_code_declares?.stages ?? null,
 		roles: a_project.what_its_code_declares?.roles ?? null,
 		moves: a_project.what_its_code_declares?.moves ?? null,
@@ -82,23 +76,33 @@ function those_that_could_not_be_read(the_projects) {
 		}));
 }
 
-/** The first project that says something different, and what it says. */
-function the_first_disagreement(the_domains, what_is_compared) {
+/**
+ * Every project that declares something the first one does not.
+ *
+ * **All of them, not the first.** Comparing everything to the first project reports one
+ * disagreement where two projects differ from each other, and a page naming one of the two
+ * leaves a reader believing the other agrees. So each project is compared with the first,
+ * and every one that differs is reported — which names a project that differs from the
+ * family without saying which project it is unlike.
+ */
+function every_disagreement(the_domains) {
+	const the_disagreements = [];
+	const the_first = what_a_domain_says(the_domains[0]);
 	for (let which_one = 1; which_one < the_domains.length; which_one += 1) {
-		const the_first = what_a_domain_says(the_domains[0]);
 		const this_one = what_a_domain_says(the_domains[which_one]);
 		for (const a_part of ["stages", "roles", "moves"]) {
-			if (JSON.stringify(the_first[a_part]) !== JSON.stringify(this_one[a_part])) {
-				return {
-					part: a_part,
-					against: the_domains[which_one],
-					what_it_says: this_one[a_part],
-					what_the_first_says: the_first[a_part],
-				};
+			if (JSON.stringify(the_first[a_part]) === JSON.stringify(this_one[a_part])) {
+				continue;
 			}
+			the_disagreements.push({
+				part: a_part,
+				against: the_domains[which_one],
+				what_it_says: this_one[a_part],
+				what_the_first_says: the_first[a_part],
+			});
 		}
 	}
-	return null;
+	return the_disagreements;
 }
 
 /**
@@ -128,6 +132,25 @@ export function what_the_family_declares(the_state) {
 	const those_unread = those_that_could_not_be_read(the_domains);
 	const the_read = the_domains.filter((a_project) => a_project.was_read);
 
+	// **Agreement needs more than one project to agree with.** A family of one is a
+	// single project's domain, and "they declare the same domain" about it is a sentence
+	// with no second subject — so a page whose state happened to hold one project would
+	// print its central sentence about a comparison it never made. The floor is two, and
+	// the verdict below names how many were asked about so a reader can see the gap.
+	if (the_projects.length < 2) {
+		return {
+			verdict: "could not be read for " + those_unread.length,
+			how_many_could_be_read: the_read.length,
+			how_many_were_asked_about: the_projects.length,
+			the_projects: the_domains,
+			the_disagreements: [],
+			why_not:
+				`a verdict about a family needs at least two projects and this state holds ` +
+				`${the_projects.length}, so nothing is said about whether they agree. The claim is ` +
+				"about agreement, and one project cannot agree with itself.",
+		};
+	}
+
 	if (the_read.length !== the_projects.length) {
 		return {
 			verdict: "could not be read for " + those_unread.length,
@@ -142,14 +165,15 @@ export function what_the_family_declares(the_state) {
 		};
 	}
 
-	const the_disagreement = the_first_disagreement(the_read, "the domain");
-	if (the_disagreement !== null) {
+	const the_disagreements = every_disagreement(the_read);
+	if (the_disagreements.length > 0) {
+		const they_differ = new Set(the_disagreements.map((a_disagreement) => a_disagreement.against.name));
 		return {
-			verdict: `${the_read.length - 1} of them differ`,
+			verdict: `${they_differ.size} of them differ`,
 			how_many_could_be_read: the_read.length,
 			how_many_were_asked_about: the_projects.length,
 			the_projects: the_domains,
-			the_disagreements: [the_disagreement],
+			the_disagreements,
 			why_not: null,
 		};
 	}
