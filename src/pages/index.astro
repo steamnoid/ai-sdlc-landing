@@ -8,7 +8,7 @@
  * and a fact that is not in that file cannot appear here.
  *
  * **This page is about four repositories rather than one**, and that changes what the
- * first rule has to survive. The page it is a view of refuses to print a section it
+ * first rule has to survive. The page it grew out of refuses to print a section it
  * could not read; here one project failing to answer must not take the other three off
  * the page. So the rule has a second half: **a project is read, or the page says in
  * words that it could not be.**
@@ -16,18 +16,55 @@
  * **What is written by hand is only what the repositories cannot refute**: the pitch,
  * and who to write to. A number somebody typed is a number that goes stale quietly.
  */
+import the_state from "../state/the_family.json";
+import { a_number_or, what_the_family_says } from "../page/what_the_page_says.mjs";
+
+const the_family = what_the_family_says(the_state);
+const there_is_something_to_say = the_family.verdict !== "nothing to say";
 ---
+
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="generator" content={Astro.generator} />
 		<title>ai-sdlc — four repositories, one domain</title>
+		<meta
+			name="description"
+			content="Four repositories building the same AI SDLC system in two languages, from the same six stages and the same table of legal moves. Every number on this page is read from a repository."
+		/>
+		<meta name="author" content="Krzysztof Paliga" />
+		<link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}/favicon.svg`} />
 		<style>
 			@import "tailwindcss";
 		</style>
 	</head>
-	<body class="bg-[#fafaf9] text-zinc-900 antialiased">
-		<main class="max-w-3xl mx-auto px-6 py-16"></main>
+	<body class="bg-[#fafaf9] text-zinc-900 antialiased selection:bg-zinc-900 selection:text-white">
+		<main class="max-w-3xl mx-auto px-6 py-16">
+			{
+				there_is_something_to_say ? (
+					<>
+						<h1 class="text-3xl font-semibold tracking-tight">The family</h1>
+						<ul class="mt-6 space-y-2">
+							{the_family.the_projects.map((a_project) => (
+								<li class="text-sm">
+									<a class="font-mono underline" href={`https://github.com/${a_project.owner}/${a_project.name}`}>
+										{a_project.owner}/{a_project.name}
+									</a>
+									<span class="text-zinc-500"> — {a_project.verdict}</span>
+									{a_project.why_not && <span class="text-zinc-500">: {a_project.why_not}</span>}
+								</li>
+							))}
+						</ul>
+					</>
+				) : (
+					<>
+						<h1 class="text-3xl font-semibold tracking-tight">No state, so nothing to say</h1>
+						<p class="mt-4 text-zinc-600 text-[15px] leading-7">{the_family.why_not}</p>
+						<p class="mt-6 text-zinc-500 text-sm">{a_number_or(0, "—")} projects read</p>
+					</>
+				)
+			}
+		</main>
 	</body>
 </html>
