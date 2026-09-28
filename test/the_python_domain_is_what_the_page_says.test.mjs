@@ -37,6 +37,8 @@ const the_collector = join(here, "..", "scripts", "ask_the_python_domain.py");
 const a_python_project = join(the_fixtures, "a_python_project");
 /** A project with three other stages, the other name for the move table, and no router. */
 const another = join(the_fixtures, "a_python_project_with_another_name_for_the_move_table");
+/** A project that carries the invariant on the stage rather than beside it. */
+const one_that_says_it_on_the_stage = join(the_fixtures, "a_python_project_saying_who_holds_a_stage_on_the_stage");
 
 /** A stage every real project in the family has, and neither fixture declares. */
 const A_STAGE_OF_THE_REAL_FAMILY = "IDLE";
@@ -268,6 +270,63 @@ describe("a collector that refuses", () => {
 			assert.match(the_answer.stderr, /stage/i);
 		} finally {
 			writeFileSync(the_file, what_was_there);
+			rmSync(the_copy, { recursive: true, force: true });
+		}
+	});
+});
+
+describe("a project that says who holds a stage on the stage itself", () => {
+	// **Asked inside each test rather than once at the top of the block.** A throw in a
+	// `describe` body aborts the suite, and this runner then reports the aborting suite as a
+	// failure while its tests never run — so the printed count reads "19 passed, 0 failed"
+	// with a red suite on the screen. The exit code is still 1, which is the only thing the
+	// gate reads, but a count that understates a failure is a count nobody should read.
+	it("answers with its stages, and with who must be holding each", () => {
+		assert.deepEqual(the_domain_of(one_that_says_it_on_the_stage).stages, [
+			{ name: "HELD", an_agent_must_be_holding_it: true },
+			{ name: "FREED", an_agent_must_be_holding_it: false },
+			{ name: "ARCHIVED", an_agent_must_be_holding_it: false },
+			{ name: "LOST", an_agent_must_be_holding_it: false },
+		]);
+	});
+
+	it("says how this project answers that question, because the family answers two ways", () => {
+		assert.equal(
+			the_domain_of(one_that_says_it_on_the_stage).how_the_project_says_who_must_hold_a_stage,
+			"a property on the stage",
+			"the collector found the invariant and did not say where it found it. One Python project " +
+				"of the two declares two tuples in its state machine and the other makes it a property " +
+				"of the stage, and a page comparing four projects is a page comparing four sets of " +
+				"conventions — so which one a project uses is the fact, not a detail of the reader.",
+		);
+	});
+
+	it("reports the other projects as answering it the other way", () => {
+		assert.equal(
+			the_domain_of(a_python_project).how_the_project_says_who_must_hold_a_stage,
+			"two tuples in the state machine",
+			"the collector has one answer and no way of noticing that another project says it another way.",
+		);
+	});
+});
+
+describe("a project that says nothing about who holds a stage", () => {
+	it("refuses, rather than reporting a stage nobody holds as a fact", () => {
+		const the_copy = a_copy_of(a_python_project);
+		try {
+			writeFileSync(
+				join(the_copy, "src", "aisdlc", "domain", "state_machine.py"),
+				"from aisdlc.domain.stage import Stage\n\nLEGAL_TRANSITIONS = {Stage.ARRIVED: (Stage.DEPARTED,)}\n",
+			);
+			const the_answer = ask_about(the_copy);
+			assert.notEqual(the_answer.status, 0, "a project that says nothing about who holds a stage was drawn as though it did");
+			assert.match(
+				the_answer.stderr,
+				/tuple|property|holds/i,
+				"the refusal does not name either of the two ways a project may say it, so a reader " +
+					"holding it does not know what the collector was looking for.",
+			);
+		} finally {
 			rmSync(the_copy, { recursive: true, force: true });
 		}
 	});
