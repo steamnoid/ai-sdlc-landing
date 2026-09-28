@@ -123,6 +123,55 @@ describe("a backlog table, read out of a document", () => {
 		);
 	});
 
+	it("reads the table under the heading that says backlog, rather than the first numbered table", () => {
+		// **A document with two numbered tables is the normal case, not an edge case.** Three of the
+		// four projects carry a table of owed defects above their backlog, and its first column is
+		// numbered too — so a reader that took the first table it found with a number in it reported
+		// `_recording_with is never called` as phase 1 of `ai-sdlc-app-rs`. The page showed it, and
+		// that is the only reason it was found.
+		const a_document_with_two_tables = [
+			"# Owed, and not a fix now",
+			"",
+			"| | What is owed |",
+			"|---|---|",
+			"| 1 | `_recording_with` is never called |",
+			"| 2 | a docstring says the run ends early |",
+			"",
+			"# Backlog",
+			"",
+			"| Phase | Slice | Gate |",
+			"|---|---|---|",
+			"| 0 | the harness | every gate fails on its own fixtures |",
+			"| 1 | the domain | a seventh Stage does not compile |",
+		].join("\n");
+		const the_reading = what_the_phases_say(a_document_with_two_tables, "AGENTS.md");
+		assert.deepEqual(
+			the_reading.phases.map((a_phase) => a_phase.the_slice),
+			["the harness", "the domain"],
+			"the reader took a table that is not the backlog. A document with two numbered tables is " +
+				"the normal case here — three of the four carry a table of owed defects above their " +
+				"backlog — and the page reported one of them as a list of phases.",
+		);
+	});
+
+	it("refuses a document with no backlog at all, rather than borrowing another table", () => {
+		const only_owed_defects = [
+			"# Owed, and not a fix now",
+			"",
+			"| | What is owed |",
+			"|---|---|",
+			"| 1 | `_recording_with` is never called |",
+		].join("\n");
+		const the_reading = what_the_phases_say(only_owed_defects, "AGENTS.md");
+		assert.equal(
+			the_reading.verdict,
+			"there is no backlog table",
+			"a document with no backlog was answered with a list of phases borrowed from another table. " +
+				"A project with no planned phases and a project whose phases are somewhere this reader did " +
+				"not look are different facts, and only one of them is a fact about the project.",
+		);
+	});
+
 	it("refuses a document with no backlog table, rather than reporting no phases", () => {
 		const nothing = what_the_phases_say("There is nothing to report here.\n", "README.md");
 		assert.equal(nothing.verdict, "there is no backlog table");
