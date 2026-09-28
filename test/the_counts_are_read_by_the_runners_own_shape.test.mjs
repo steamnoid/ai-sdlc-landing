@@ -96,7 +96,7 @@ describe("a cargo run", () => {
 	});
 
 	it("is read from the last line that says test result, not from the last line", () => {
-		const the_counts = the_counts_in(A_CARGO_TAIL, "rust");
+		const the_counts = the_counts_in(A_CARGO_PRINTED, "rust");
 		assert.equal(
 			the_counts.passed,
 			8,

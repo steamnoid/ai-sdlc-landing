@@ -38,18 +38,25 @@ const WHERE_A_RUNNER_SUMMARISES = {
 	rust: { the_line_is_the_last_one: false, says: "test result:" },
 };
 
-/** The line a runner put its counts on, or `null` when it printed none. */
-function the_line_the_counts_are_on(what_the_runner_printed, a_language) {
+/**
+ * The lines a runner put its counts on.
+ *
+ * **A `pytest` run has one; a `cargo` run has one per test binary.** Cargo's last of them
+ * is the doc-tests, which ran nothing, so a reader taking the last one reported `0 passed`
+ * beside a green suite on a project that has 132 tests. The lines are therefore returned
+ * whole and added up, and how many there were is carried in the answer so a reader knows
+ * what the figure is a sum of.
+ */
+function the_lines_the_counts_are_on(what_the_runner_printed, a_language) {
 	const where = WHERE_A_RUNNER_SUMMARISES[a_language];
 	if (where === undefined) {
-		return null;
+		return [];
 	}
 	const the_lines = what_the_runner_printed.trim().split("\n").filter((a_line) => a_line.trim().length > 0);
 	if (where.the_line_is_the_last_one) {
-		return the_lines[the_lines.length - 1] ?? null;
+		return the_lines.length === 0 ? [] : [the_lines[the_lines.length - 1]];
 	}
-	const the_summary_lines = the_lines.filter((a_line) => a_line.includes(where.says));
-	return the_summary_lines[the_summary_lines.length - 1] ?? null;
+	return the_lines.filter((a_line) => a_line.includes(where.says));
 }
 
 /**
@@ -62,20 +69,32 @@ function the_line_the_counts_are_on(what_the_runner_printed, a_language) {
  * had.
  */
 export function the_counts_in(what_the_runner_printed, a_language) {
-	const the_line = the_line_the_counts_are_on(what_the_runner_printed, a_language);
-	const a_count_of = (what_it_says) => {
-		if (the_line === null) {
-			return null;
-		}
-		const a_found = new RegExp(`(\\d+)\\s+${what_it_says}`).exec(the_line);
-		return a_found === null ? null : Number(a_found[1]);
+	const the_lines = the_lines_the_counts_are_on(what_the_runner_printed, a_language);
+	if (the_lines.length === 0) {
+		return {
+			passed: null,
+			failed: null,
+			skipped: null,
+			deselected: null,
+			ignored: null,
+			how_many_binaries: 0,
+		};
+	}
+	/** The sum over every line, or `null` when no line printed it at all. */
+	const a_total_of = (what_it_says) => {
+		const every_count = the_lines
+			.map((a_line) => new RegExp(`(\\d+)\\s+${what_it_says}`).exec(a_line))
+			.filter((a_found) => a_found !== null)
+			.map((a_found) => Number(a_found[1]));
+		return every_count.length === 0 ? null : every_count.reduce((a_total, a_count) => a_total + a_count, 0);
 	};
 	return {
-		passed: a_count_of("passed"),
-		failed: a_count_of("failed"),
-		skipped: a_count_of("skipped"),
-		deselected: a_count_of("deselected"),
-		ignored: a_count_of("ignored"),
+		passed: a_total_of("passed"),
+		failed: a_total_of("failed"),
+		skipped: a_total_of("skipped"),
+		deselected: a_total_of("deselected"),
+		ignored: a_total_of("ignored"),
+		how_many_binaries: the_lines.length,
 	};
 }
 
@@ -122,18 +141,18 @@ export function read_the_suite(a_project, at, was_it_asked_to_run) {
 	});
 
 	const what_it_printed = `${the_run.stdout ?? ""}${the_run.stderr ?? ""}`;
-	const the_last_line = the_line_the_counts_are_on(what_it_printed, a_project.language) ?? "";
-	const it_ran_out_of_time = the_run.error?.code === "ETIMEDOUT";
+	const the_it_ran_out_of_time = the_run.error?.code === "ETIMEDOUT";
+	const what_the_suite_said =
+		the_lines_the_counts_are_on(what_it_printed, a_project.language).join(" | ") || "no summary line at all";
 
 	return {
 		was_run: true,
 		is_green: the_run.status === 0,
 		exit_code: the_run.status,
-		...the_counts_in(the_last_line, a_project.language),
-		why_not:
-			it_ran_out_of_time
-				? `the suite ran for twenty minutes and was stopped, so nothing is known about whether it passes.`
-				: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${the_last_line}`,
+		...the_counts_in(what_it_printed, a_project.language),
+		why_not: the_it_ran_out_of_time
+			? "the suite ran for twenty minutes and was stopped, so nothing is known about whether it passes"
+			: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${what_the_suite_said}`,
 		what_it_printed,
 		what_was_run: the_command.the_command.join(" "),
 	};

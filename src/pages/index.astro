@@ -18,7 +18,7 @@
  */
 import the_state from "../state/the_family.json";
 import { what_the_family_declares } from "../page/what_the_family_declares.mjs";
-import { a_number_or, what_the_family_says } from "../page/what_the_page_says.mjs";
+import { a_number_or, what_the_family_says, what_the_suite_says } from "../page/what_the_page_says.mjs";
 
 const the_family = what_the_family_says(the_state);
 const the_domain = what_the_family_declares(the_state);
@@ -143,7 +143,9 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 								the family has fewer members than it has.
 							</p>
 							<div class="mt-6 grid sm:grid-cols-2 gap-3">
-								{the_family.the_projects.map((a_project) => (
+								{the_family.the_projects.map((a_project) => {
+									const the_suite = what_the_suite_says(a_project.the_suite);
+									return (
 									<div class="rounded-xl border border-zinc-200 p-5">
 										<div class="flex items-start justify-between gap-3">
 											<a
@@ -176,11 +178,50 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 											<dt class="text-zinc-500">Licence</dt>
 											<dd>{a_project.what_its_documents_say?.licence?.name ?? "no licence file"}</dd>
 										</dl>
+										{/* The suite, its verdict, and the command the verdict is about */}
+										<div class="mt-4 pt-4 border-t border-zinc-100">
+											<div class="flex items-center justify-between gap-3">
+												<span class="text-[13px] text-zinc-500">Its own suite</span>
+												<span
+													class={`px-2 py-0.5 rounded-full border text-[11px] font-medium ${
+														the_suite.verdict === "green"
+															? "bg-emerald-50 border-emerald-200 text-emerald-800"
+															: the_suite.verdict === "not green"
+																? "bg-amber-50 border-amber-200 text-amber-800"
+																: "bg-zinc-50 border-zinc-200 text-zinc-600"
+													}`}
+												>
+													{the_suite.verdict}
+												</span>
+											</div>
+											{the_suite.verdict === "not run" ? (
+												<p class="mt-2 text-[13px] text-zinc-600">{the_suite.detail}</p>
+											) : (
+												<p class="mt-2 text-[13px] text-zinc-600">
+													<span class="text-zinc-900 tabular-nums">{a_number_or(the_suite.passed, "no counts")}</span>
+													passed
+													{the_suite.failed !== null && the_suite.failed > 0 && (
+														<>
+															, <span class="text-amber-700 tabular-nums">{the_suite.failed}</span> failed
+														</>
+													)}
+												</p>
+											)}
+											{the_suite.what_was_run && (
+												<p class="mt-2 text-[11px] text-zinc-400">
+													<span class="text-zinc-500">ran</span> <code class="font-mono">{the_suite.what_was_run}</code>
+												</p>
+											)}
+											{the_suite.verdict === "not green" && the_suite.detail && (
+												<p class="mt-2 text-[12px] text-amber-700">{the_suite.detail}</p>
+											)}
+										</div>
 										{a_project.why_not && (
 											<p class="mt-3 text-[13px] text-amber-700 border-l-2 border-amber-200 pl-3">{a_project.why_not}</p>
 										)}
 									</div>
-								))}
+									);
+								})}
 							</div>
 						</div>
 					</section>
