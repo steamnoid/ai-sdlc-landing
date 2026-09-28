@@ -25,7 +25,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const the_fixtures = join(here, "fixtures");
@@ -65,12 +65,13 @@ function spawn(the_program, the_arguments) {
 }
 
 describe("a family of four that could all be read", () => {
-	const the_answer = collect(THE_FAMILY_THAT_EXISTS);
+	let the_answer = {};
+	beforeEach(() => { the_answer = collect(THE_FAMILY_THAT_EXISTS); });
+	afterEach(() => the_answer.afterwards());
 
 	it("writes a state, having refused nothing", () => {
 		assert.equal(the_answer.status, 0, `the collector refused, and said:\n${the_answer.stderr}`);
 		assert.ok(existsSync(the_answer.the_state), "the collector succeeded and wrote no state");
-		the_answer.afterwards();
 	});
 
 	it("holds all four, in the order it was told about", () => {
@@ -79,7 +80,6 @@ describe("a family of four that could all be read", () => {
 			the_state.the_family.map((a_project) => a_project.name),
 			THE_FAMILY_THAT_EXISTS.map((a_project) => a_project.name),
 		);
-		the_answer.afterwards();
 	});
 
 	it("gives every one of them a domain, read the way its language requires", () => {
@@ -91,7 +91,6 @@ describe("a family of four that could all be read", () => {
 				"would be drawing two of them from an import and two from a text reader, and a reader " +
 				"would have no way to tell which was which.",
 		);
-		the_answer.afterwards();
 	});
 
 	it("keeps the domain of a project in one place, not scattered across the state", () => {
@@ -101,7 +100,6 @@ describe("a family of four that could all be read", () => {
 			"a project on the page has no place holding what its code declares. A page that read " +
 				"several places per project would have one truth per place, and they would disagree.",
 		);
-		the_answer.afterwards();
 	});
 
 	it("writes nothing at all when the file it was told to write cannot be written", () => {
@@ -113,22 +111,24 @@ describe("a family of four that could all be read", () => {
 		// must not leave a truncated one behind either.
 		const the_second = collect(THE_FAMILY_THAT_EXISTS);
 		assert.ok(existsSync(the_second.the_state), "the second run wrote no state at all");
-		the_answer.afterwards();
 		the_second.afterwards();
 	});
 });
 
 describe("a family where one project cannot be read", () => {
-	const the_answer = collect([
-		...THE_FAMILY_THAT_EXISTS.slice(0, 2),
-		{ owner: "steamnoid", name: "a_rust_project", language: "rust", is_broken_on_purpose: true },
-		THE_FAMILY_THAT_EXISTS[3],
-	]);
+	let the_answer = {};
+	beforeEach(() => {
+		the_answer = collect([
+			...THE_FAMILY_THAT_EXISTS.slice(0, 2),
+			{ owner: "steamnoid", name: "a_rust_project", language: "rust", is_broken_on_purpose: true },
+			THE_FAMILY_THAT_EXISTS[3],
+		]);
+	});
+	afterEach(() => the_answer.afterwards());
 
 	it("still writes a state, because three readable projects are not nothing", () => {
 		assert.equal(the_answer.status, 0, "one unread project took the whole page down");
 		assert.ok(existsSync(the_answer.the_state));
-		the_answer.afterwards();
 	});
 
 	it("keeps the unread project on the page, rather than dropping it", () => {
@@ -139,12 +139,11 @@ describe("a family where one project cannot be read", () => {
 			"the page is about a family and the state holds three of them. A reader is told the family " +
 				"has three members, which is the one answer a page about a family must never give.",
 		);
-		the_answer.afterwards();
 	});
 
 	it("says that project was not read, and gives no domain for it at all", () => {
 		const a_project = the_answer.read().the_family[2];
-		assert.equal(a_project.was_read, true, "the broken project was read");
+		assert.equal(a_project.was_read, false, "a project whose directory is not there was reported as read");
 		assert.equal(
 			a_project.what_its_code_declares,
 			null,
@@ -152,7 +151,6 @@ describe("a family where one project cannot be read", () => {
 				"grew out of is built around is a page built from half an answer, and a domain that is " +
 				"three stages out of four is half an answer.",
 		);
-		the_answer.afterwards();
 	});
 
 	it("says why, in words a reader could act on", () => {
@@ -162,8 +160,18 @@ describe("a family where one project cannot be read", () => {
 			"the unread project has no reason, or a reason too short to act on. An absence with no " +
 				"reason reads on a page as a project with nothing to report.",
 		);
-		assert.match(a_project.why_not, /stage\.rs|no stage/i, "the reason does not name what could not be read");
-		the_answer.afterwards();
+		assert.match(
+			a_project.why_not,
+			/a_rust_project/,
+			"the reason does not name the project it is about, so a reader holding it does not know " +
+				"which of the four it belongs to.",
+		);
+		assert.match(
+			a_project.why_not,
+			/is-not-on-disk|not a directory/,
+			"the reason does not quote what the reader said, so it cannot be acted on. A page that " +
+				"paraphrases a refusal has already lost the one part of it a reader could use.",
+		);
 	});
 
 	it("leaves the other three completely untouched", () => {
@@ -174,7 +182,6 @@ describe("a family where one project cannot be read", () => {
 				"has one failure where it should have four independent answers.",
 		);
 		assert.ok(the_state.the_family[3].what_its_code_declares.stages.length > 0);
-		the_answer.afterwards();
 	});
 });
 
@@ -193,6 +200,5 @@ describe("a family that does not exist", () => {
 				"never read is a page about a repository nobody can check.",
 		);
 		assert.match(the_state.the_family[1].why_not, /not-on-disk/, "the reason does not name the project");
-		the_answer.afterwards();
 	});
 });
