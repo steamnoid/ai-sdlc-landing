@@ -135,12 +135,18 @@ def read_a_module(what_it_is_declared_in: str, what_the_page_needs: str) -> Modu
         ) from the_import_error
 
 
-def read_the_stages(state_machine: ModuleType) -> list[dict[str, Any]]:
+def read_the_stages(state_machine: ModuleType) -> tuple[list[dict[str, Any]], str]:
     """Every stage, in the order the enumeration declares them, each with who holds it.
 
     The order is the project's own, and not an order chosen for the page. A reader of
     the domain's code should recognise the page's table, and rearranging it to suit a
     layout would break that in the one place it can be checked.
+
+    **The invariant is asked for in both of the ways the family declares it**, and which
+    one answered is returned with the answer. `ai-sdlc-os` keeps two tuples in its state
+    machine; `ai-sdlc-os-plus` makes it a property of the stage. A reader that knows one
+    reports the other as a stage nobody holds — in the voice of a refusal, and therefore
+    with the confidence of one.
     """
     the_stage_type = getattr(read_a_module("aisdlc.domain.stage", "the stages"), "Stage", None)
     if not isinstance(the_stage_type, type) or not issubclass(the_stage_type, Enum):
@@ -156,23 +162,67 @@ def read_the_stages(state_machine: ModuleType) -> list[dict[str, Any]]:
             "nothing to draw and a reader would be looking at an empty table of stages."
         )
 
-    stages_without_an_agent = set(getattr(state_machine, "STAGES_WITHOUT_AN_AGENT", ()))
-    stages_with_an_agent = set(getattr(state_machine, "STAGES_WITH_AN_AGENT", ()))
+    who_holds_a_stage, how_they_say_so = the_two_tuples(state_machine, every_stage)
+    if who_holds_a_stage is None:
+        who_holds_a_stage, how_they_say_so = the_property_on_the_stage(the_stage_type, every_stage)
 
-    the_stages: list[dict[str, Any]] = []
-    for a_stage in every_stage:
-        without = a_stage in stages_without_an_agent
-        with_ = a_stage in stages_with_an_agent
-        if without == with_:
+    the_stages = [
+        {"name": str(a_stage.value), "an_agent_must_be_holding_it": who_holds_a_stage(a_stage)}
+        for a_stage in every_stage
+    ]
+    return the_stages, how_they_say_so
+
+
+def the_two_tuples(
+    state_machine: ModuleType, every_stage: list[Any]
+) -> tuple[Any | None, str]:
+    """Who holds each stage, read from two tuples beside the table.
+
+    Returns `None` for the reader rather than a guess, so that a project which does not
+    declare them this way is read the other way instead of being reported as empty.
+    """
+    without = getattr(state_machine, "STAGES_WITHOUT_AN_AGENT", None)
+    with_ = getattr(state_machine, "STAGES_WITH_AN_AGENT", None)
+    if without is None and with_ is None:
+        return None, ""
+
+    stages_without_an_agent = set(without or ())
+    stages_with_an_agent = set(with_ or ())
+
+    def who_holds_a_stage(a_stage: Any) -> bool:
+        is_without = a_stage in stages_without_an_agent
+        is_with = a_stage in stages_with_an_agent
+        if is_without == is_with:
             raise TheInvariantSaysNothingAboutAStageError(
                 f"the stage {a_stage.value} is "
-                + ("in both of the tuples that say who holds it" if without else "in neither of the tuples that say who holds it")
+                + ("in both of the tuples that say who holds it" if is_without else "in neither of the tuples that say who holds it")
                 + ", so the page would have to guess whether an agent must be holding it. The "
                 "tuples are STAGES_WITHOUT_AN_AGENT and STAGES_WITH_AN_AGENT."
             )
-        the_stages.append({"name": str(a_stage.value), "an_agent_must_be_holding_it": with_})
+        return is_with
 
-    return the_stages
+    return who_holds_a_stage, "two tuples in the state machine"
+
+
+def the_property_on_the_stage(the_stage_type: type, every_stage: list[Any]) -> tuple[Any, str]:
+    """Who holds each stage, read from a property each stage carries.
+
+    **The question is asked of the stage rather than beside it**, which is the second of
+    the family's two ways and the one a reader of the other would have refused. A project
+    that declares neither is refused by name, because a stage whose holder is undeclared
+    drawn with an answer invented for it is the one thing this script must not do.
+    """
+    the_property = getattr(the_stage_type, "the_agent_must_be_present", None)
+    if the_property is None:
+        raise TheInvariantSaysNothingAboutAStageError(
+            "nothing in this project says which stages an agent must be holding. The two ways the "
+            "family says it are two tuples beside the table of moves — STAGES_WITHOUT_AN_AGENT and "
+            "STAGES_WITH_AN_AGENT — and a property on the stage called the_agent_must_be_present. "
+            f"The stages found are {[str(a_stage.value) for a_stage in every_stage]} and neither of "
+            "the two is here, so the page would have to invent a holder for each of them."
+        )
+
+    return (lambda a_stage: bool(the_property.fget(a_stage))), "a property on the stage"
 
 
 def read_the_roles() -> list[str]:
@@ -263,11 +313,13 @@ def the_answer_about(a_repository: Path) -> dict[str, Any]:
     which_code_answered = the_tree_that_answered(must_be_inside=the_source_directory_of(a_repository))
     the_state_machine = read_a_module("aisdlc.domain.state_machine", "the table of legal moves")
     the_name_the_moves_go_by, the_table = read_the_table_of_moves(the_state_machine)
+    the_stages, how_they_say_who_holds_one = read_the_stages(the_state_machine)
     the_routes, why_the_routes_are_not_there = read_the_routes()
 
     return {
         "which_code_answered": which_code_answered,
-        "stages": read_the_stages(the_state_machine),
+        "stages": the_stages,
+        "how_the_project_says_who_must_hold_a_stage": how_they_say_who_holds_one,
         "roles": read_the_roles(),
         "moves": read_the_moves(the_table),
         "the_name_the_move_table_goes_by": the_name_the_moves_go_by,
