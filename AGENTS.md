@@ -130,12 +130,14 @@ skimmed precisely when somebody is about to add the thing it does not mention.
 | | |
 |---|---|
 | the suites, per project kind | **built** — `uv run pytest -q` and `cargo test --no-fail-fast`, both run in the build |
-| the lineage | **built** — two of the three edges the family records, and the two projects that record none |
+| the lineage | **built** — the three edges the family records, and the three projects that record none |
 | the page | **built** — the family, the one domain, the four conventions, the suites, the phases, the lineage |
+| a share card | not built. One was copied from the page this grew out of and removed: it said "ai-sdlc-os" in that project's colours and nothing referenced it. When one is drawn it carries no numbers |
 | the GitHub API | not read. Stars, forks, check runs and pull requests are on the page this grew out of and not on this one, because a claim that needs a network stops being checkable offline |
 | `github.read_file`-style reading at a ref | not built, and not wanted here — this page reads checkouts, not revisions |
 | per-phase delivery dates | not built. The phases are read and their marks reported; nothing says when a phase moved |
 | an activity history | not built. The commits of the four are not on the page, because a page that rebuilds hourly would republish a history it read fresh each time and the reader would learn nothing from the difference |
+| caching the two Rust builds in CI | **not built, and it is the first thing to add.** Four suites run hourly today and two of them are `cargo test` over a workspace; `actions/cache` for `~/.cargo` and each project's `target/` is what makes that affordable, and the run has not been measured in CI yet |
 
 **And the two things that are deliberately not here.** A `SOURCES.lock` for this page, because
 it is a view and pins a *source* — the family itself is four changing repositories, and a hash
