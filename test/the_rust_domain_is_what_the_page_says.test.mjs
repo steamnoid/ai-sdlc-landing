@@ -172,6 +172,45 @@ describe("a project in a workspace member, writing its names another way", () =>
 	});
 });
 
+describe("the disciplines are written, not spelled by their variants", () => {
+	it("answers with the written name of a discipline, not the variant's spelling", () => {
+		assert.deepEqual(
+			the_domain_of(a_rust_project).roles,
+			["PILOT", "ENGINEER"],
+			"the answer holds the Rust variant names. This project writes its disciplines in capitals " +
+				"in a match, and the page must print what the project writes — the same rule the stage " +
+				"reader follows, and the one this reader did not follow for roles.",
+		);
+	});
+
+	it("answers with the written names a Display writes, where that is how they are written", () => {
+		assert.deepEqual(the_domain_of(a_workspace).roles, ["ARCHIVIST"]);
+	});
+
+	it("refuses a discipline whose written name is nowhere, rather than printing the variant", () => {
+		const the_copy = a_copy_of(a_rust_project);
+		const the_file = join(the_copy, "src", "domain", "role.rs");
+		const what_was_there = readFileSync(the_file, "utf8");
+		writeFileSync(
+			the_file,
+			`${what_was_there}\nimpl Role {\n    /// How a discipline writes itself.\n    pub const fn name(self) -> &'static str {\n        match self {\n            Role::Pilot => "PILOT",\n        }\n    }\n}\n`,
+		);
+		try {
+			const the_answer = ask_about(the_copy);
+			assert.notEqual(the_answer.status, 0, "a discipline with no written name was printed as its variant");
+			assert.match(
+				the_answer.stderr,
+				/Engineer/,
+				"the refusal does not name the variant whose written name is missing, so a reader " +
+					"cannot tell which of the two disciplines was the one.",
+			);
+		} finally {
+			writeFileSync(the_file, what_was_there);
+			rmSync(the_copy, { recursive: true, force: true });
+		}
+	});
+});
+
 describe("a reader that cannot read", () => {
 	it("refuses a project with no stage enumeration, naming where it looked", () => {
 		const the_copy = a_copy_of(a_rust_project);

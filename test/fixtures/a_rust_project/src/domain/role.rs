@@ -8,3 +8,13 @@ pub enum Role {
     /// The engineer.
     Engineer,
 }
+
+impl Role {
+    /// How a discipline writes itself, which is not its variant name.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Role::Pilot => "PILOT",
+            Role::Engineer => "ENGINEER",
+        }
+    }
+}
