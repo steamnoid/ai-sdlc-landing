@@ -198,11 +198,13 @@ describe("a reader that cannot read", () => {
 			assert.notEqual(the_answer.status, 0, "a stage with no written name was given one by rule");
 			assert.match(
 				the_answer.stderr,
-				/DONE/,
-				"the refusal does not name the stage whose name could not be read. A reader holding " +
-					"'the reader could not read this project' cannot tell which of the four stages it " +
-					"was, and there is a test in each project that says which one is missing.",
+				/\bDone\b/,
+				"the refusal does not name the stage whose name could not be read. It cannot print the " +
+					"written name — that is what it could not read — so it must name the variant, and a " +
+					"reader holding 'this project could not be read' needs to know which of the four stages " +
+					"was the one. Each real project has its own test saying which stage is missing.",
 			);
+			assert.match(the_answer.stderr, /stage\.rs/, "the refusal does not name the file it was reading");
 		} finally {
 			writeFileSync(the_file, what_was_there);
 			rmSync(the_copy, { recursive: true, force: true });
@@ -231,21 +233,47 @@ describe("a reader that cannot read", () => {
 		}
 	});
 
-	it("refuses a transition table that is not a match, naming the file", () => {
+	it("ignores a second table beside the match, because two tables are not a state machine", () => {
 		const the_copy = a_copy_of(a_rust_project);
 		const the_file = join(the_copy, "src", "domain", "state_machine.rs");
 		const what_was_there = readFileSync(the_file, "utf8");
+		// The shape `ai-sdlc-app-rs` writes down as the one it deliberately avoided: a lookup
+		// table, where a stage added to neither column is classified by elimination and
+		// nothing fails. A reader that understood both shapes would have to decide what an
+		// absent row means, and it cannot tell an absent row from a forgotten one.
 		writeFileSync(
 			the_file,
-			what_was_there.replace(
-				"pub const fn legal_transitions_from(stage: Stage) -> &'static [Stage] {",
-				"pub const fn legal_transitions_from(stage: Stage) -> &'static [Stage] {\n    if true { return &[]; }",
-			),
+			`${what_was_there}\nconst A_LOOKUP: [(Stage, &[Stage]); 2] = [\n    (Stage::Idle, &[Stage::AwaitingAgentPickup]),\n    (Stage::Done, &[]),\n];\n`,
 		);
 		try {
+			assert.deepEqual(
+				the_domain_of(the_copy).moves,
+				the_domain_of(a_rust_project).moves,
+				"adding a second table changed the moves the reader reports. A reader that merged both " +
+					"shapes would answer with a state machine assembled from two of them, and the page " +
+					"would draw one.",
+			);
+		} finally {
+			writeFileSync(the_file, what_was_there);
+			rmSync(the_copy, { recursive: true, force: true });
+		}
+	});
+
+	it("refuses when legal_transitions_from is gone, naming the file and what it wanted", () => {
+		const the_copy = a_copy_of(a_rust_project);
+		const the_file = join(the_copy, "src", "domain", "state_machine.rs");
+		const what_was_there = readFileSync(the_file, "utf8");
+		writeFileSync(the_file, what_was_there.replace(/pub const fn legal_transitions_from[\s\S]*?\n\}\n/, ""));
+		try {
 			const the_answer = ask_about(the_copy);
-			assert.notEqual(the_answer.status, 0, "a table that is not a match was read as though it were");
-			assert.match(the_answer.stderr, /state_machine\.rs/);
+			assert.notEqual(the_answer.status, 0, "a project with no table of moves was drawn as though it had one");
+			assert.match(the_answer.stderr, /state_machine\.rs/, "the refusal does not name the file it was reading");
+			assert.match(
+				the_answer.stderr,
+				/legal_transitions_from/,
+				"the refusal does not name what it was looking for, so a reader holding it does not know " +
+					"whether to add a function, rename one, or give up on this project.",
+			);
 		} finally {
 			writeFileSync(the_file, what_was_there);
 			rmSync(the_copy, { recursive: true, force: true });
