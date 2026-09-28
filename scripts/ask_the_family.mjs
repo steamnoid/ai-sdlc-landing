@@ -19,6 +19,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { what_the_licence_says, what_the_phases_say } from "../src/page/what_the_documents_say.mjs";
+import { read_the_suite } from "./read_a_suite.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -40,7 +41,7 @@ function the_text_of(at, a_file_name) {
 }
 
 /** What a project's code declares, or the refusal that says why it could not be read. */
-function what_its_code_declares(a_project, where_it_is, a_family) {
+function what_its_code_declares(a_project, where_it_is) {
 	// **A project the tests ask to be missing is looked for under a name that says so**,
 	// rather than under a path with a suffix bolted on. The reason the page prints then
 	// names a directory a reader could go and look for, which a path like
@@ -106,13 +107,13 @@ function what_a_rust_project_declares(at, a_project) {
 }
 
 /** Everything about one project that could be read, with the reason for what could not. */
-export function read_one_project(a_project, where_they_are) {
+export function read_one_project(a_project, where_they_are, were_the_suites_asked_for) {
 	// `--where` is the directory the projects are checked out *in*, and the project's own
 	// name is always part of the path. Treating an absolute `--where` as though it were
 	// already a project is right for exactly one of the four, and a bug that only appears
 	// when a caller passes the path the way its own usage describes.
 	const at = resolve(where_they_are, a_project.name);
-	const the_code = what_its_code_declares(a_project, at, null);
+	const the_code = what_its_code_declares(a_project, at);
 	const the_agents = the_text_of(at, "AGENTS.md");
 	const the_licence = the_text_of(at, "LICENSE");
 
@@ -129,6 +130,11 @@ export function read_one_project(a_project, where_they_are) {
 			phases: the_agents === null ? null : what_the_phases_say(the_agents, "AGENTS.md"),
 			licence: the_licence === null ? null : { is_stated: true, name: what_the_licence_says(the_licence) },
 		},
+		// **The suite is a fact about the checkout, not about the project.** A working tree
+		// somebody is halfway through a change in is red, and reporting that honestly is the
+		// point — so it is read the same way everything else is, and the command that was run
+		// is stored beside the verdict.
+		the_suite: read_the_suite(a_project, at, were_the_suites_asked_for === true),
 	};
 }
 
@@ -136,25 +142,33 @@ export function read_one_project(a_project, where_they_are) {
 const THIS_PAGE = { owner: "steamnoid", name: "ai-sdlc-landing" };
 
 /** The four projects, and the state the page is built from. */
-export function collect_the_family(the_family, where_they_are) {
+export function collect_the_family(the_family, where_they_are, were_the_suites_asked_for) {
 	return {
 		// **The page's own repository is in the state rather than typed into the template**, so a
 		// test can hold that every repository the page links to is one the state mentions. A page
 		// that links to itself with a hand-written address is a link nothing can check.
 		this_page: { ...THIS_PAGE, url: `https://github.com/${THIS_PAGE.owner}/${THIS_PAGE.name}` },
-		the_family: the_family.map((a_project) => read_one_project(a_project, where_they_are)),
+		the_family: the_family.map((a_project) => read_one_project(a_project, where_they_are, were_the_suites_asked_for)),
 		the_build: { read_at: new Date().toISOString() },
 	};
 }
 
-/** The flags, read one at a time, and refused when one is given a value it cannot take. */
+/**
+ * The flags, read one at a time, and refused when one is given a value it cannot take.
+ *
+ * **The flags that take no value are named, and that is not a formality.** The first
+ * version inferred it from the first argument, so `--without-the-suites` consumed the next
+ * argument as its value and either refused a flag it was given no value for or silently
+ * swallowed the path the collector needed. A flag that reads like a switch and behaves
+ * like a pair is a switch that gets turned off by the next thing typed after it.
+ */
 export function the_flags_in(process_arguments) {
-	const a_flag_with_no_value = ["--help"];
+	const a_flag_with_no_value = ["--help", "--without-the-suites"];
 	const what_was_asked_for = {};
 	for (let where_it_is = 0; where_it_is < process_arguments.length; where_it_is += 1) {
 		const the_argument = process_arguments[where_it_is];
 		if (a_flag_with_no_value.includes(the_argument)) {
-			what_was_asked_for[the_argument.slice(2)] = true;
+			what_was_asked_for[the_argument.slice(2).replace(/-/g, "_")] = true;
 			continue;
 		}
 		if (!the_argument.startsWith("--")) {
@@ -177,6 +191,7 @@ const usage = `Read the four projects, and write the state the page is built fro
     --where <path>       the directory the four projects are checked out in
     --out <path>         where the state is written (default: src/state/the_family.json)
     --family <json>      the projects to read, as a JSON array (default: the four)
+    --without-the-suites  read the projects but run none of their test suites
 `;
 
 async function main() {
@@ -191,7 +206,9 @@ async function main() {
 	}
 
 	const the_family = what_was_asked_for.family ? JSON.parse(what_was_asked_for.family) : THE_FAMILY;
-	const the_state = collect_the_family(the_family, what_was_asked_for.where);
+	const were_the_suites_asked_for =
+		what_was_asked_for.run_the_suites === true || what_was_asked_for.without_the_suites !== true;
+	const the_state = collect_the_family(the_family, what_was_asked_for.where, were_the_suites_asked_for);
 	const where_the_state_should_land = resolve(what_was_asked_for.out ?? "src/state/the_family.json");
 
 	mkdirSync(dirname(where_the_state_should_land), { recursive: true });

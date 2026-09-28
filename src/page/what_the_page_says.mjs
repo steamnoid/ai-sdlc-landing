@@ -64,29 +64,44 @@ function what_one_project_says(a_project) {
 	};
 }
 
-/** The suite of one project, kept apart from the three things it is not. */
+/**
+ * The suite of one project, kept apart from the three things it is not.
+ *
+ * **Every count is kept, including on a run that failed.** The page this is a view of
+ * drops the number that passed when the suite is red, which reads as a tidy failure and
+ * is not one: a reader told "1 failed" and nothing else cannot tell how much of the suite
+ * was reached, and a run that passed 449 and failed one is a very different thing from a
+ * run that failed one of four.
+ *
+ * **The command that was run is part of the answer.** A verdict is about a particular
+ * invocation of a particular runner, and four projects in two languages run four
+ * different commands — so a page that says a project is green without saying which
+ * command is asking a reader to take the claim on trust.
+ */
 export function what_the_suite_says(the_suite) {
 	if (!the_suite || the_suite.was_run !== true) {
 		return {
 			verdict: "not run",
 			passed: null,
+			failed: null,
 			skipped: null,
 			deselected: null,
 			detail: the_suite?.why_not ?? "no suite was read for this project",
 			what_it_printed: null,
-			what_was_run: the_suite?.what_was_run ?? null,
+			what_was_run: null,
 		};
 	}
 	return {
-		verdict: the_suite.is_green ? "green" : "not green",
-		passed: the_suite.passed,
-		skipped: the_suite.skipped,
-		deselected: the_suite.deselected,
+		verdict: the_suite.is_green === true ? "green" : "not green",
+		passed: the_suite.passed ?? null,
+		failed: the_suite.failed ?? null,
+		skipped: the_suite.skipped ?? null,
+		deselected: the_suite.deselected ?? null,
 		// The exit code, in words, and the numbers the suite printed even when they are
 		// unflattering: "not green" with nothing under it is a claim the reader cannot
 		// check against their own run.
 		detail: the_suite.why_not,
-		what_it_printed: the_suite.what_it_printed,
+		what_it_printed: the_suite.what_it_printed ?? null,
 		what_was_run: the_suite.what_was_run ?? null,
 	};
 }
