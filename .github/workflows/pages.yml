@@ -41,6 +41,14 @@ jobs:
   collect:
     name: Read the four repositories
     runs-on: ubuntu-latest
+    # **A step output is not a job output.** `has_anything_changed.mjs` writes `has_changed` to
+    # `$GITHUB_OUTPUT` correctly, and that is not enough: what carries a value from this job to
+    # `build` is this block. Without it the value is empty, `build`'s condition is false, the job
+    # skips itself, `deploy` is skipped as its dependency, and the run reports success having
+    # published nothing — which is why `test/the_workflow_publishes_the_page.test.mjs` reads this
+    # file rather than the script it calls.
+    outputs:
+      has_changed: ${{ steps.changed.outputs.has_changed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -95,6 +103,7 @@ jobs:
         run: npm run --silent test:collectors
 
       - name: Has anything changed on the page
+        id: changed
         run: node scripts/has_anything_changed.mjs --state src/state/the_family.json
 
       # **The directory, not the file.** An artifact of one file has that file's directory
