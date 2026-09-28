@@ -58,6 +58,29 @@ export function how_the_documents_mark_a_phase_as_done(a_slice) {
 	return NOTHING_IS_FOUND;
 }
 
+/**
+ * The lines of the section a document puts under a heading.
+ *
+ * **The heading is what makes a table a backlog.** A document with two numbered tables is
+ * the normal case here — three of the four carry a table of owed defects above their
+ * backlog, and it has the same shape, a number and a sentence — so a reader that took the
+ * first table it found with a number in it reported `_recording_with is never called` as
+ * phase 1 of `ai-sdlc-app-rs`, and the page showed it. A section runs to the next heading of
+ * any level, so a document that reorganises its backlog is refused rather than half-read.
+ */
+function the_lines_under(a_document, a_heading) {
+	const the_lines = a_document.split("\n");
+	const where_it_starts = the_lines.findIndex((a_line) =>
+		a_line.trim().replace(/^#+\s*/, "").toLowerCase().startsWith(a_heading),
+	);
+	if (where_it_starts === -1) {
+		return [];
+	}
+	const the_rest = the_lines.slice(where_it_starts + 1);
+	const where_it_ends = the_rest.findIndex((a_line) => /^#{1,6}\s/.test(a_line));
+	return where_it_ends === -1 ? the_rest : the_rest.slice(0, where_it_ends);
+}
+
 /** The rows of a markdown table, without the header or the separator under it. */
 function the_rows_of_a_table(a_document) {
 	const the_lines = a_document.split("\n").filter((a_line) => a_line.trim().startsWith("|"));
@@ -75,7 +98,7 @@ function the_rows_of_a_table(a_document) {
  * did not look" are different facts, and only one of them is a fact about the project.
  */
 export function what_the_phases_say(a_document, where_it_was_read) {
-	const the_rows = the_rows_of_a_table(a_document);
+	const the_rows = the_rows_of_a_table(the_lines_under(a_document, "backlog").join("\n"));
 	const the_phases = the_rows
 		.map((a_row) => ({
 			// A number rather than the string a markdown cell holds. A phase's number is what

@@ -35,8 +35,10 @@ import {
 	what_the_phases_say,
 } from "../src/page/what_the_documents_say.mjs";
 
-/** A backlog table as three of the four projects write one. */
-const A_BACKLOG_TABLE = `| Phase | Slice | Gate |
+/** A backlog table as three of the four projects write one, under the heading they put it in. */
+const A_BACKLOG_TABLE = `# Backlog
+
+| Phase | Slice | Gate |
 |---|---|---|
 | 0 | the harness, the glossary | every gate fails on its own fixtures first |
 | 1 | ~~the domain: entities, the state machine~~ **done** | a seventh Stage does not compile |

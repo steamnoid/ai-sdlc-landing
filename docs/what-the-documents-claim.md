@@ -57,9 +57,9 @@ about a sibling project and neither names it, and no `SOURCES.lock` ties them to
 
 | project | phases its backlog declares | phases carrying a mark saying they are done |
 |---|---|---|
-| `ai-sdlc-os` | 12 | 3 |
+| `ai-sdlc-os` | 11 | 3 |
 | `ai-sdlc-os-plus` | 10 | 0 |
-| `ai-sdlc-app-rs` | 15 | 4 |
+| `ai-sdlc-app-rs` | 8 | 4 |
 | `ai-sdlc-app-rs-plus` | 10 | 0 |
 
 **The two rows with no marks are not projects that have done nothing.** `ai-sdlc-os-plus` has
@@ -71,6 +71,13 @@ error a reader is least likely to check, because "not done" is what a phase usua
 
 The page therefore prints a phase's verdict *and* the mark the verdict came from, and a phase
 with no mark says it is marked in neither way.
+
+**And the backlog is not the first numbered table in the document.** Three of the four carry
+a table of owed defects above their backlog, and it has the same shape — a number and a
+sentence. A reader that took the first table it found reported `_recording_with is never
+called` as phase 1 of `ai-sdlc-app-rs`, which is how the seven owed defects there became
+"fifteen phases" and are now eight. The page showing a list of known defects as a plan is
+what found it.
 
 ## What the family agreed to disagree about
 
