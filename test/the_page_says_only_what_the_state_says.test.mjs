@@ -80,35 +80,31 @@ if (!existsSync(where_the_state_lives)) {
 			}
 		});
 
-		it("links to each project exactly once, and to no repository that is not in the state", () => {
-			for (const a_project of the_state.the_family) {
-				const a_link = `href="https://github.com/${a_project.owner}/${a_project.name}"`;
-				const how_many = the_markup.split(a_link).length - 1;
-				assert.equal(
-					how_many,
-					1,
-					`the page links to ${a_project.name} ${how_many} times. A card that appears twice is a ` +
-						"page counting a project that does not exist, and a project linked twice is a reader " +
-						"with two ways to be sent to the same place.",
-				);
-			}
+		it("links to each project as a card, and every other link is one the state records", () => {
+			const every_repository_linked = [
+				...new Set([...the_markup.matchAll(/href="(https:\/\/github\.com\/[^"/]+\/[^"/]+)"/g)].map((a_found) => a_found[1])),
+			];
 
-			// **The prefix is not enough, and this is what proved it.** The page links to its own
-			// repository in the header, and a count of `href=".../steamnoid/ai-sdlc-` matches it —
-			// so the count read five where there are four projects. A prefix test would have to be
-			// taught about the exception, and the next repository would teach it a second one.
-			const every_repository_linked = [...the_markup.matchAll(/href="(https:\/\/github\.com\/[^"/]+\/[^"/]+)"/g)].map(
-				(a_found) => a_found[1],
-			);
-			// The state holds `owner` and `name`; the page holds a full address. They are
-			// compared as full addresses here, because a reader compares a link and a reader
-			// does not take a hostname off it first.
+			// **A project may be linked more than once, and that is the lineage doing it.** The
+			// card for a project is one link and a second link is a reader being sent to the same
+			// repository from the row that says another was ported from it — which is a
+			// different reason to want it, and a rule that forbade it would have made the page
+			// unable to show the family is related. So a project is linked *at least* once, and
+			// every address beyond the four is one the state itself records.
 			const what_the_state_mentions = the_state.the_family.map(
 				(a_project) => `https://github.com/${a_project.owner}/${a_project.name}`,
 			);
 			if ("this_page" in the_state) {
 				what_the_state_mentions.push(the_state.this_page.url);
 			}
+			for (const a_url of what_the_state_mentions) {
+				assert.ok(
+					the_markup.includes(`href="${a_url}"`),
+					`the page never links ${a_url}, which the state holds. A project in the state and not ` +
+						"on the page is the failure this repository exists to prevent.",
+				);
+			}
+
 			const the_ones_the_state_does_not_mention = every_repository_linked.filter(
 				(a_url) => !what_the_state_mentions.includes(a_url),
 			);

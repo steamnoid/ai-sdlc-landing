@@ -57,42 +57,67 @@ describe("a project with a file that records where it was read from", () => {
 	};
 
 	it("names the project it was read from, and the commit and branch it read at", () => {
-		const the_lineage = what_the_lineage_says(a_project_with_a_pin);
-		assert.deepEqual(the_lineage.the_edges, [
-			{
-				points_at: "ai-sdlc-os",
-				owner: "steamnoid",
-				how_it_is_recorded: "a pin in SOURCES.lock",
-				at_the_commit: "98fab0f",
-				on_the_branch: "phase-8-analysis-pipeline",
-				read_on: "2026-09-28",
-				is_the_pin_still_held: null,
-				why_the_pin_may_be_stale: null,
-			},
-			{
-				points_at: "ai-sdlc-os-landing",
-				owner: "steamnoid",
-				how_it_is_recorded: "a design reference in SOURCES.lock",
-				at_the_commit: "f44cf1",
-				on_the_branch: null,
-				read_on: "2026-09-27",
-				is_the_pin_still_held: null,
-				why_the_pin_may_be_stale: null,
-			},
-		]);
+		const [the_port, the_design] = what_the_lineage_says(a_project_with_a_pin).the_edges;
+
+		assert.equal(the_port.points_at, "ai-sdlc-os");
+		assert.equal(the_port.how_it_is_recorded, "a pin in SOURCES.lock");
+		assert.equal(the_port.at_the_commit, "98fab0f");
+		assert.equal(the_port.on_the_branch, "phase-8-analysis-pipeline");
+		assert.equal(the_port.read_on, "2026-09-28");
+
+		// **Null, because the pin records a path on somebody's machine and a path has no owner
+		// in it.** The real SOURCES.lock says `/Users/<somebody>/Develop/ai-sdlc/ai-sdlc-os`, so the
+		// owner of that repository is written down nowhere in the file and a page that filled it in
+		// would be guessing from a family name.
+		assert.equal(the_port.owner, null, "an owner was invented for a pin that records only a path");
+
+		// **The design reference carries its own commit, not the port's.** The pin records
+		// `design-commit` and `design-read-on` beside `design-from`, and the first version of this
+		// reader took the first line that looked like a commit — so the page said the design
+		// reference was read at the commit the port was read at, which is a false sentence about a
+		// file a reader can go and look at.
+		assert.equal(the_design.points_at, "ai-sdlc-os-landing");
+		assert.equal(the_design.how_it_is_recorded, "a design reference in SOURCES.lock");
+		assert.equal(
+			the_design.at_the_commit,
+			"f44cf12",
+			"the design reference was given the port's commit. The pin records design-commit beside " +
+				"design-from, and pairing them is a page stating a port was read at a commit it was " +
+				"never read at.",
+		);
+		assert.equal(the_design.read_on, "2026-09-27");
+		assert.equal(the_design.on_the_branch, null, "a branch was given to a reference the pin records no branch for");
+	});
+
+	it("reads an owner out of an address, because an address carries one and a path does not", () => {
+		const the_lineage = what_the_lineage_says({
+			owner: "steamnoid",
+			name: "a-project",
+			the_text_of_a_sources_lock: "# ported-from:   https://github.com/somebody/else",
+			the_text_of_its_licence: null,
+		});
+		assert.equal(the_lineage.the_edges[0].owner, "somebody");
+		assert.equal(the_lineage.the_edges[0].points_at, "else");
 	});
 
 	it("says the pin is not checked, rather than saying the pin holds", () => {
-		for (const an_edge of what_the_lineage_says(a_project_with_a_pin).the_edges) {
+		// **Only the pins.** An edge out of a licence line is not a pin, and a question about
+		// whether a pin holds is meaningless for it — so the field is null there and the loop
+		// here asks about the two edges a `SOURCES.lock` recorded.
+		const the_pins = what_the_lineage_says(a_project_with_a_pin).the_edges.filter((an_edge) =>
+			an_edge.how_it_is_recorded.endsWith("in SOURCES.lock"),
+		);
+		assert.equal(the_pins.length, 2, "this fixture records two lines in a SOURCES.lock");
+		for (const a_pin of the_pins) {
 			assert.equal(
-				an_edge.is_the_pin_still_held,
+				a_pin.is_the_pin_still_held,
 				null,
 				"a pin was reported as holding or not holding. This page reads one repository and " +
 					"cannot re-hash a sibling's tree, so the only honest answer is that it did not check — " +
 					"and 'read from this commit' is a different claim from 'still matches it'.",
 			);
 			assert.match(
-				an_edge.why_the_pin_may_be_stale,
+				a_pin.why_the_pin_may_be_stale,
 				/not checked|re-hash/i,
 				"the edge says nothing about whether the pin is still held, so a reader cannot tell an " +
 					"unchecked pin from one somebody verified.",
@@ -109,6 +134,24 @@ describe("a project with a file that records where it was read from", () => {
 		});
 		assert.equal(what_the_licence_says.the_edges[0].how_it_is_recorded, "a line in its own licence");
 		assert.equal(what_the_licence_says.the_edges[0].at_the_commit, null);
+	});
+
+	it("does not carry the sentence's punctuation into a repository's name", () => {
+		// The real licence reads "This repository is a port of https://github.com/steamnoid/ai-sdlc-os,"
+		// and the comma is the sentence's, not the name's. An edge pointing at `ai-sdlc-os,` is a
+		// link to nothing, and a page drawing one is drawing a project that does not exist.
+		const [the_edge] = what_the_lineage_says({
+			owner: "steamnoid",
+			name: "a-project",
+			the_text_of_a_sources_lock: null,
+			the_text_of_its_licence: A_LICENCE_NAMING_A_REPOSITORY,
+		}).the_edges;
+		assert.equal(
+			the_edge.points_at,
+			"ai-sdlc-os",
+			"a repository's name was carried out of a sentence with its punctuation attached, so the " +
+				"edge points at a project whose name ends in a comma.",
+		);
 	});
 });
 

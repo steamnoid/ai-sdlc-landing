@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 
 import { what_the_licence_says, what_the_phases_say } from "../src/page/what_the_documents_say.mjs";
 import { read_the_suite } from "./read_a_suite.mjs";
+import { what_the_lineage_says } from "../src/page/what_the_lineage_says.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -130,6 +131,15 @@ export function read_one_project(a_project, where_they_are, were_the_suites_aske
 			phases: the_agents === null ? null : what_the_phases_say(the_agents, "AGENTS.md"),
 			licence: the_licence === null ? null : { is_stated: true, name: what_the_licence_says(the_licence) },
 		},
+		// **The lineage is read from the two files that can record it** and from nowhere else —
+		// three of the four projects name no other, and that is a fact worth printing rather
+		// than a gap to paper over.
+		the_lineage: what_the_lineage_says({
+			owner: a_project.owner,
+			name: a_project.name,
+			the_text_of_a_sources_lock: the_text_of(at, "SOURCES.lock"),
+			the_text_of_its_licence: the_licence,
+		}),
 		// **The suite is a fact about the checkout, not about the project.** A working tree
 		// somebody is halfway through a change in is red, and reporting that honestly is the
 		// point — so it is read the same way everything else is, and the command that was run
