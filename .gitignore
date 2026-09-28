@@ -1,0 +1,17 @@
+# The state is a build artifact and is never committed.
+#
+# **A committed snapshot is a number nobody checked.** The first deployment of the page
+# this one is a view of published last month's test count for exactly that reason, and
+# every step of the build reported success while it happened. The page is built from
+# what a run read, so the file that records what a run read is not source.
+src/state/
+
+# A checkout of each project a run reads, and everything inside it.
+build/
+
+node_modules/
+dist/
+.astro/
+
+# macOS
+.DS_Store

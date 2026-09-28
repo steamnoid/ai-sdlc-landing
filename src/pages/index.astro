@@ -1,0 +1,33 @@
+---
+/**
+ * The page. It prints what the state says and nothing else.
+ *
+ * **Every number on this page was read out of a repository by a machine.** There is no
+ * hard-coded stage, role, test count, phase or commit here, and there is a test that
+ * holds this true: the state is a separate file written by `scripts/ask_the_family.mjs`,
+ * and a fact that is not in that file cannot appear here.
+ *
+ * **This page is about four repositories rather than one**, and that changes what the
+ * first rule has to survive. The page it is a view of refuses to print a section it
+ * could not read; here one project failing to answer must not take the other three off
+ * the page. So the rule has a second half: **a project is read, or the page says in
+ * words that it could not be.**
+ *
+ * **What is written by hand is only what the repositories cannot refute**: the pitch,
+ * and who to write to. A number somebody typed is a number that goes stale quietly.
+ */
+---
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<title>ai-sdlc — four repositories, one domain</title>
+		<style>
+			@import "tailwindcss";
+		</style>
+	</head>
+	<body class="bg-[#fafaf9] text-zinc-900 antialiased">
+		<main class="max-w-3xl mx-auto px-6 py-16"></main>
+	</body>
+</html>

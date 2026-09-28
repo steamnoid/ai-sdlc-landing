@@ -1,0 +1,29 @@
+{
+  "name": "ai-sdlc-landing",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "node --test test/",
+    "test:collectors": "node --test test/the_python_domain_is_what_the_page_says.test.mjs test/the_rust_domain_is_what_the_page_says.test.mjs test/what_the_family_has_in_common.test.mjs test/what_the_page_says.test.mjs",
+    "test:page": "node --test test/the_page_says_only_what_the_state_says.test.mjs",
+    "collect": "node scripts/ask_the_family.mjs --where ../ --run-the-suites --github-api \"${GITHUB_API:-https://api.github.com}\"",
+    "build:with-state": "npm run collect && astro build",
+    "gate": "npm run test && npm run collect && astro build"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.2",
+    "tailwindcss": "^4.3.3"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}
