@@ -196,10 +196,21 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 											</div>
 											{the_suite.verdict === "not run" ? (
 												<p class="mt-2 text-[13px] text-zinc-600">{the_suite.detail}</p>
+											) : the_suite.passed === null ? (
+												/*
+												 * **The case where there is no number gets its own sentence.**
+												 * A template with one branch and no rule for an absent number emits
+												 * the word anyway, and "no counts passed" is not a claim about
+												 * anything — on the one card whose project is not building.
+												 */
+												<p class="mt-2 text-[13px] text-amber-700">
+													{the_suite.verdict === "not green"
+														? "It printed no counts — nothing ran."
+														: "It printed no counts."}
+												</p>
 											) : (
 												<p class="mt-2 text-[13px] text-zinc-600">
-													<span class="text-zinc-900 tabular-nums">{a_number_or(the_suite.passed, "no counts")}</span>
-													passed
+													<span class="text-zinc-900 tabular-nums">{the_suite.passed}</span> passed
 													{the_suite.failed !== null && the_suite.failed > 0 && (
 														<>
 															, <span class="text-amber-700 tabular-nums">{the_suite.failed}</span> failed
