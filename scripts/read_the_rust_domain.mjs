@@ -244,7 +244,15 @@ function written_or_refuse(the_written_names, a_variant, a_path) {
 	return the_name;
 }
 
-/** Every discipline the project declares, in the order the enumeration declares them. */
+/**
+ * Every discipline the project declares, written the way this project writes them.
+ *
+ * **The same rule as the stages, and for the same reason.** A role is written `Pilot`
+ * in Rust and `PILOT` in the specification, and `ai-sdlc-app-rs` writes it in a
+ * `name()` while `ai-sdlc-app-rs-plus` writes it through a `Display` — so the variant's
+ * own spelling is the language's default, not this project's convention, and printing
+ * it would put a page about four projects' conventions into the language's.
+ */
 function the_roles_in(a_text, a_path) {
 	const the_enumeration = /pub enum Role \{([^}]*)\}/.exec(a_text);
 	if (the_enumeration === null) {
@@ -252,20 +260,46 @@ function the_roles_in(a_text, a_path) {
 			`${a_path} declares no \`pub enum Role\`, so the page cannot name a discipline for this project.`,
 		);
 	}
-	const the_roles = [];
+	const the_variants = [];
 	for (const a_line of the_enumeration[1].split("\n")) {
 		const a_role = /^\s{4}([A-Z][A-Za-z0-9]*)\s*,\s*(?:\/\/.*)?$/.exec(a_line);
 		if (a_role !== null) {
-			the_roles.push(a_role[1]);
+			the_variants.push(a_role[1]);
 		}
 	}
-	if (the_roles.length === 0) {
+	if (the_variants.length === 0) {
 		throw new TheRustDomainIsNotReadableError(
 			`${a_path} declares \`enum Role\` with no members the reader could see, and a page naming no ` +
 				"discipline reads as a project that has none.",
 		);
 	}
-	return the_roles;
+
+	const a_written_role = /Role::([A-Za-z][A-Za-z0-9]*)\s*=>\s*["']([A-Z0-9_]+)["']/g;
+	const the_written = new Map();
+	for (const a_found of a_text.matchAll(a_written_role)) {
+		the_written.set(a_found[1], a_found[2]);
+	}
+	if (the_written.size === 0) {
+		throw new TheRustDomainIsNotReadableError(
+			`${a_path} declares disciplines and never writes any of them. The reader takes every written ` +
+				'name from a string literal in this project, because the variant\'s own spelling is ' +
+				"Rust's rather than the project's: `Pilot` is what Rust calls it here and `PILOT` is what " +
+				"the specification and every artifact call it, and printing the first on a page comparing " +
+				"four projects' conventions is printing the language's.",
+		);
+	}
+
+	return the_variants.map((a_variant) => {
+		const the_name = the_written.get(a_variant);
+		if (the_name === undefined) {
+			throw new TheRustDomainIsNotReadableError(
+				`${a_path} declares the discipline ${a_variant} and never writes its name. The reader takes ` +
+					"every written name from a string literal in this project, so a discipline whose name is " +
+					`nowhere here cannot be given one. The disciplines declared here are ${the_variants.join(", ")}.`,
+			);
+		}
+		return the_name;
+	});
 }
 
 /** How this project writes a stage's name, which is a fact the page compares. */
