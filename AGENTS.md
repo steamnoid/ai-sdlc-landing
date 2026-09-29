@@ -97,6 +97,25 @@ offline cannot be checked.
 already there, which is what you want while you are changing a project. `--clone` reads
 the branch as everybody else sees it, which is what the page is about.
 
+**A fresh clone of this repository on its own runs two tests red, and both are refusing.**
+`test/the_documents_agree_with_the_tree.test.mjs` checks that what the documents claim about
+the family is what the family's trees hold, so it needs the four projects checked out beside
+this one; `test/the_page_says_only_what_the_state_says.test.mjs` reads a state and compares
+the page against it, so it needs `npm run collect` to have run. Each says so in its failure
+message rather than passing, and a green run in their place would have meant nothing — which
+is the arrangement working, not a bug to fix.
+
+**That is a decision and it costs something.** The gate is not runnable on a machine that
+does not have the family, so a contributor without it has no cheap way to check a change. It
+is the right way round for a page whose whole argument is that a thing which was not read is
+printed as not read: the alternative is a gate that reports green about a family it never
+looked at.
+
+**`npm run build` has no such requirement, and used to.** A fresh clone died with `ENOENT`
+writing the stand-in state, because `writeFileSync` does not make the directory it writes
+into and `src/state` is gitignored — in the one case the stand-in existed for. The comment
+above that line said the fresh clone could not be built and then did nothing about it.
+
 ## What not to do
 
 - **Do not commit `src/state/the_family.json`.** It is a build artifact, and the first
