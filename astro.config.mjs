@@ -1,6 +1,6 @@
 // @ts-check
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -37,6 +37,17 @@ const the_state_the_page_is_built_from = {
 	hooks: {
 		'astro:build:start': () => {
 			if (!existsSync(where_the_state_lives)) {
+				// **The directory, and not only the file.** `src/state` is gitignored, so a fresh
+				// clone does not have it either — and this hook is the thing that makes a fresh
+				// clone buildable, which is the only reason it exists. `writeFileSync` does not
+				// create the directory it writes into, so the stand-in for the case the stand-in
+				// was written for failed with `ENOENT` on a fresh clone: `npm run build` threw a
+				// stack trace instead of building the page that says it has nothing to say.
+				//
+				// It was never seen because every run of it happened in a working tree where a
+				// collector had already been run and the directory was there. The comment above
+				// said "a fresh clone could not be built at all" and then did nothing to stop it.
+				mkdirSync(dirname(where_the_state_lives), { recursive: true });
 				writeFileSync(where_the_state_lives, what_stands_in_for_a_missing_one);
 			}
 		},

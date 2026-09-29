@@ -13,11 +13,14 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 const where_the_page_lands = "index.html";
 const where_the_state_lives = join("src", "state", "the_family.json");
+
+/** A fresh clone has no state and no directory to put one in, and those are two different absences. */
+const where_the_state_directory_lives = dirname(where_the_state_lives);
 
 /**
  * Build the page from `at` and return the built HTML's path.
@@ -37,8 +40,9 @@ export function build_the_page(at, a_directory_to_build_into, what_to_do_about_t
 	const what_was_there = there_was_a_state ? readFileSync(the_state_file, "utf8") : null;
 
 	if (what_to_do_about_the_state.none === true) {
-		rmSync(the_state_file, { force: true });
+		rmSync(join(at, where_the_state_directory_lives), { recursive: true, force: true });
 	} else if ("write" in what_to_do_about_the_state) {
+		mkdirSync(join(at, where_the_state_directory_lives), { recursive: true });
 		writeFileSync(the_state_file, `${JSON.stringify(what_to_do_about_the_state.write, null, "\t")}\n`);
 	}
 
@@ -53,8 +57,9 @@ export function build_the_page(at, a_directory_to_build_into, what_to_do_about_t
 		}
 		return join(a_directory_to_build_into, where_the_page_lands);
 	} finally {
-		rmSync(the_state_file, { force: true });
+		rmSync(join(at, where_the_state_directory_lives), { recursive: true, force: true });
 		if (what_was_there !== null) {
+			mkdirSync(join(at, where_the_state_directory_lives), { recursive: true });
 			writeFileSync(the_state_file, what_was_there);
 		}
 	}
