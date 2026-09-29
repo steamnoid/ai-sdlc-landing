@@ -189,14 +189,20 @@ describe("the workflow that publishes the page", () => {
 		}
 	});
 
-	it("runs no action on a Node version GitHub has deprecated", () => {
-		// `actions/checkout@v4` targets Node 20 and GitHub forces it onto Node 24, printing a
-		// deprecation warning on every run. It works today and stops working on a date nobody chose.
-		//
-		// **The workflow as JSON, and both quote styles are matched** — the first version of this
-		// looked for a single quote after `uses:`, which JSON never produces, so it found no actions
-		// at all and the loop below it had nothing to check. A test that passes because it looked for
-		// the wrong thing is the same failure as the one it was written to catch.
+	it("pins no action to a version GitHub has warned about", () => {
+		// **`actions/upload-artifact@v4` is the current v4 and GitHub warns about it.** So "use v5 or
+		// later" is the wrong rule and was wrong in the first version of this test: it flagged a
+		// current release while the two genuinely deprecated pins it did not name sat further down
+		// the file. The list is what GitHub actually printed on the 28th of September, and it is
+		// copied rather than computed — a version a project has not deprecated is a fact about that
+		// project and not a fact about a rule of the form "everything must be recent".
+		const the_ones_github_warned_about = [
+			"actions/checkout@v4",
+			"actions/setup-python@v5",
+			"actions/upload-artifact@v4",
+			"actions/deploy-pages@v4",
+		];
+
 		const the_read_workflow = the_workflow();
 		const the_every_action = JSON.stringify(the_read_workflow).match(/uses\\?":\s*\\?"([^"\\]+)\\?"/g) ?? [];
 		assert.ok(
@@ -204,14 +210,16 @@ describe("the workflow that publishes the page", () => {
 			"the workflow names no action, so this test checked nothing. A guard that finds nothing to " +
 				"look at passes, which is why the count is asserted before the loop rather than after it.",
 		);
-		for (const a_use of the_every_action) {
-			assert.match(
-				a_use,
-				/@v([5-9]|\d{2,})/,
-				`the workflow uses ${a_use}, which targets a Node version GitHub has deprecated. The run ` +
-					"still succeeds — forced onto a newer runtime than it was written for — so the " +
-					"warning is easy to scroll past.",
-			);
-		}
+
+		const the_still_deprecated = the_every_action.filter((a_use) =>
+			the_ones_github_warned_about.some((a_pin) => a_use.endsWith(a_pin)),
+		);
+		assert.deepEqual(
+			the_still_deprecated,
+			[],
+			`the workflow still pins ${the_still_deprecated.join(", ")}. Each of these ran, and each was ` +
+				"forced onto a newer Node than it was written for, which is why the run succeeded and the " +
+				"warning is easy to scroll past.",
+		);
 	});
 });

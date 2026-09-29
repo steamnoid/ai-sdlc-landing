@@ -50,9 +50,9 @@ jobs:
     outputs:
       has_changed: ${{ steps.changed.outputs.has_changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -110,7 +110,7 @@ jobs:
       # as its root, so the download lands beside the committed copy — and the first
       # deployment of the page this one grew out of published months-old numbers while every
       # step reported success.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: the-state
           path: src/state
@@ -119,19 +119,22 @@ jobs:
   build:
     name: Build the page
     needs: collect
-    # A run that found the family exactly where it was would otherwise publish a
-    # byte-identical artifact four times a day. A skipped build is still a green run.
-    if: needs.collect.outputs.has_changed == 'true'
+    # **The skip is right for a schedule and wrong for a person.** A schedule that finds the family
+    # exactly where it was should not publish a byte-identical artifact, so `has_changed` skips the
+    # build. But `workflow_dispatch` means somebody pressed a button, and refusing a request
+    # because nothing had changed is not a skip — it is a green first stage and then silence, which
+    # is the hardest shape of failure to notice. So a dispatch always builds.
+    if: github.event_name == 'workflow_dispatch' || needs.collect.outputs.has_changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: the-state
           path: src/state
@@ -143,13 +146,13 @@ jobs:
 
       - run: npm run --silent build
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           # Without this a repository that has never had a Pages site fails to configure,
           # and the first deployment is the one that discovers it.
           enablement: true
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -160,28 +163,35 @@ jobs:
     environment:
       name: github-pages
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
 
   keepalive:
     name: Keep the schedule alive
-    needs: deploy
-    # **GitHub switches scheduled workflows off in a public repository after 60 days without
-    # activity, and a page that rebuilds itself never receives a commit.** This job pushes one
-    # empty commit once the silence passes 45 days — one a month rather than two hundred a
-    # year, so the history carries the mechanism instead of burying it. If the page ever stops
-    # updating, look at this job before anything else.
+    # **`needs: collect`, and not `needs: deploy`.** GitHub switches scheduled workflows off in a
+    # public repository after 60 days without activity, and a page that rebuilds itself never
+    # receives a commit — so this job pushes one empty commit once the silence passes 45 days, one a
+    # month rather than two hundred a year.
+    #
+    # It hung off `deploy` at first, which reaches it only through `build`, which is skipped
+    # whenever nothing changed. Nothing changing is the state a keepalive exists to survive: a page
+    # that updates hourly is current almost always, so the rescue would never have run. It entered
+    # on its first scheduled run by luck, because that run happened to find changed facts.
+    #
+    # An empty commit costs a collector run, not a deployment — `has_changed` will be false and the
+    # build will skip, which is the whole of what a commit here is for.
+    needs: collect
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
+          # The history, not one commit. A job that reads the history is a job that cannot see what
+          # it judges.
           fetch-depth: 0
       - name: Push a commit if the silence is nearly long enough
         run: |
           set -euo pipefail
-          days_since=$(git log -1 --format=%cI | awk -v now="$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{
-            print int(( systime(mktime(substr(now,1,19),1,1,1,1,1)) - systime(mktime(substr($0,1,19),1,1,1,1,1)) ) / 86400)
-          }')
+          days_since=$(node scripts/how_many_days_since_the_last_commit.mjs)
           echo "the last commit was $days_since days ago"
           if [ "$days_since" -ge 45 ]; then
             git config user.name "github-actions[bot]"
