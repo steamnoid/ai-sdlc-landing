@@ -283,3 +283,41 @@ describe("the workflow that publishes the page", () => {
 		);
 	});
 });
+
+describe("every action the workflow names, and the version it names it at", () => {
+	// **A pin the runner cannot resolve stops the run before a single step executes.** The first
+	// version of this pinned `astral-sh/setup-uv` at `v10`, and the run failed in *Set up job* with
+	// `unable to find version v10` — a red run whose log contains no step, no command and no
+	// explanation beyond a name, on a workflow that had been green an hour before.
+	//
+	// The check is that every pin is an exact tag, because an exact tag is the only form that cannot
+	// mean something different next month. It is not that exact versions are best practice, which is
+	// an opinion; it is that a major floating somewhere between "exists" and "does not" is the shape
+	// of thing that breaks without anybody touching this repository.
+	const every_action = Object.values(the_workflow().jobs)
+		.flatMap((a_job) => a_job.steps ?? [])
+		.map((a_step) => a_step.uses)
+		.filter(Boolean);
+
+	it("names each one, so there is something to check", () => {
+		assert.ok(every_action.length > 0, "the workflow names no action, so this test checks nothing");
+	});
+
+	it("pins each third-party action at an exact version rather than a floating major", () => {
+		// **Only actions outside `actions/`.** `actions/checkout@v7` resolves — the first run with it
+		// was green — and demanding an exact version of everything would be a rule about taste dressed
+		// as a rule about correctness. What failed was a *third-party* action at a floating major, and
+		// a third-party action is one whose tags this repository does not control.
+		const the_third_party = every_action.filter((a_use) => !a_use.startsWith("actions/"));
+		const the_floating = the_third_party.filter((a_use) => !/@v\d+\.\d+/.test(a_use));
+		assert.deepEqual(
+			the_floating,
+			[],
+			`the workflow pins ${the_floating.join(", ")} at a major rather than an exact version. ` +
+				"A floating pin is a promise about a tag that may not exist: `astral-sh/setup-uv@v10` " +
+				"failed the run in *Set up job*, before any step ran, with a message naming nothing but " +
+				"the version it could not find.",
+		);
+	});
+});
+
