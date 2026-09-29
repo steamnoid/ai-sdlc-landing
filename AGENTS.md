@@ -257,10 +257,23 @@ first commit, and asserts that a commit **arrived at the remote** rather than me
 locally. That distinction is the entire purpose. GitHub watches the repository and not the runner,
 so a commit that stays in the checkout is not activity and keeps nothing alive.
 
-**What is still not proven is the runner, and it is now a much smaller thing to be unsure
-about.** Everything that can be decided without GitHub is decided by a test; what remains is
-whether `git push` reaches github.com from a runner with a token, which is the most ordinary
-sentence in this file.
+**And it is now exercised, which took making it reachable.** A dispatch carries *the number of
+days of silence that counts as long enough*, defaulting to 45, and the keepalive runs on a
+dispatch that fills it in. Typing `0` runs it now. This is a number rather than a yes because a
+boolean has to become a number by an expression, and the first one was
+`inputs.x && 0 || 45` — where zero is the falsy half, so it produced forty-five. **The run
+proved it:** the job went green, the script ran, and the log said *the limit is 45, so the
+schedule pushed nothing*. A green job that did the wrong thing, caught by reading its own log.
+
+Typed `0` on the 29th, and `origin/main` carries `01f095d` — *the schedule kept itself alive*,
+by `github-actions[bot]`, touching no file. That is the branch, on a real runner, with a real
+token, forty-five days before the schedule would have needed it.
+
+**A test checked that the input's name was in the environment and was satisfied by a name that
+never reached anything.** A truthiness bug in a value that is usually forty-five is invisible
+until somebody asks for zero and the run quietly does nothing. So the test now requires the
+environment to be exactly the input, and the workflow has no expression between what a person
+typed and what the script acts on.
 
 ---
 
