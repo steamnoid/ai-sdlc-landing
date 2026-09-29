@@ -78,6 +78,25 @@ describe("two states that are the same family", () => {
 				"nobody can learn anything from.",
 		);
 	});
+
+	it("does not care whether the family was cloned or read where it already stood", () => {
+		const the_second = a_state();
+		the_second.the_build.was_cloned = false;
+		assert.deepEqual(what_differs_between(a_state(), the_second), []);
+	});
+
+	it("does not mind a different duration in the same output", () => {
+		const the_second = a_state();
+		the_second.the_family[0].the_suite.what_it_printed = "913 passed in 9.87s";
+		assert.deepEqual(
+			what_differs_between(a_state(), the_second),
+			[],
+			"a run's own duration was compared. The words are the same and the timing is not, and a page " +
+				"republished four times a day because a suite took a different number of seconds is a page " +
+				"nobody can learn anything from.",
+		);
+	});
+
 });
 
 describe("two states that are not the same family", () => {

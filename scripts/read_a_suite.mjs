@@ -98,8 +98,18 @@ export function the_counts_in(what_the_runner_printed, a_language) {
 	};
 }
 
-/** The command for a project, or the reason there is none this reader knows. */
+/** The command for a project, or the reason there is none this reader knows.
+ *
+ * **A project may declare its own command, and that is a seam rather than a convenience.**
+ * The family's two Python projects both run `uv run pytest -q` and its two Rust projects both run
+ * `cargo test --no-fail-fast`, so a command per language is right for all four — and it is also the
+ * only way to run this function against anything a test can produce, since a test cannot invoke
+ * `cargo`. A default that cannot be replaced is not a default, it is a constant.
+ */
 export function the_command_for(a_project) {
+	if (Array.isArray(a_project.the_command_to_run)) {
+		return { the_command: a_project.the_command_to_run, why_not: null };
+	}
 	const the_one = THE_COMMANDS_THIS_READER_KNOWS.find((a_runner) => a_runner.language === a_project.language);
 	if (the_one === undefined) {
 		return {
@@ -110,7 +120,11 @@ export function the_command_for(a_project) {
 				`${THE_COMMANDS_THIS_READER_KNOWS.map((a_runner) => a_runner.language).join(" and ")}.`,
 		};
 	}
-	return { the_command: the_one.the_command, why_not: null, is_it_run_in_a_virtual_environment: the_one.is_it_run_in_a_virtual_environment === true };
+	return {
+		the_command: the_one.the_command,
+		why_not: null,
+		is_it_run_in_a_virtual_environment: the_one.is_it_run_in_a_virtual_environment === true,
+	};
 }
 
 /** The suite of one project, run or not run, and the reason either way. */
@@ -142,18 +156,28 @@ export function read_the_suite(a_project, at, was_it_asked_to_run) {
 
 	const what_it_printed = `${the_run.stdout ?? ""}${the_run.stderr ?? ""}`;
 	const the_it_ran_out_of_time = the_run.error?.code === "ETIMEDOUT";
-	const what_the_suite_said =
-		the_lines_the_counts_are_on(what_it_printed, a_project.language).join(" | ") || "no summary line at all";
+	const what_the_suite_said = the_lines_the_counts_are_on(what_it_printed, a_project.language).join(" | ");
 
 	return {
 		was_run: true,
 		is_green: the_run.status === 0,
 		exit_code: the_run.status,
 		...the_counts_in(what_it_printed, a_project.language),
+		// **The timing is taken out of the sentence, and the sentence is the one a reader reads.**
+		// `pytest` ends with `913 passed in 4.12s` and that line is what the verdict explains itself
+		// with, so the sentence said a different number of seconds on every run. That made every
+		// state differ from the last one, `has_changed` was always true, and a page that rebuilds
+		// itself hourly republished itself every single time — the whole cost the skip exists to
+		// avoid, paid in full, for a fact about how long a suite took rather than about the family.
 		why_not: the_it_ran_out_of_time
 			? "the suite ran for twenty minutes and was stopped, so nothing is known about whether it passes"
-			: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${what_the_suite_said}`,
+			: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${without_a_duration(what_the_suite_said)}`,
 		what_it_printed,
 		what_was_run: the_command.the_command.join(" "),
 	};
+}
+
+/** A summary line without the time it took, which is a fact about the run and not about the family. */
+function without_a_duration(a_summary) {
+	return a_summary.replace(/\s+in \d+(\.\d+)?(m?s)\b/g, "").replace(/\s*\|\s*$/, "");
 }

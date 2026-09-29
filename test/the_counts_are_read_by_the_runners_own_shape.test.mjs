@@ -18,9 +18,12 @@
  */
 
 import { strict as assert } from "node:assert";
+import { mkdtempSync, writeFileSync, chmodSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { the_counts_in } from "../scripts/read_a_suite.mjs";
+import { read_the_suite, the_counts_in } from "../scripts/read_a_suite.mjs";
 
 /** What `pytest -q` ends with. */
 const A_PYTEST_PRINTED = ".\n...........................................FF.......F...................\n1 failed, 449 passed, 12 skipped in 4.12s";
@@ -133,6 +136,61 @@ describe("a run this reader does not know", () => {
 			[null, null, null],
 			"a runner this page does not know was given counts. The point of naming the runner is that " +
 				"a shape read by the wrong rule is a number nobody checked.",
+		);
+	});
+});
+
+/** A project whose suite runner prints whatever this test tells it to, and fails.
+ *
+ * **`/bin/sh -c` rather than a script with a shebang.** Executing a file out of a temporary
+ * directory is refused on some machines for reasons that have nothing to do with what is being
+ * tested, and a test that fails because of its own scaffolding is a test that cannot be read.
+ */
+function a_project_whose_suite_prints(what_it_should_print) {
+	return {
+		name: "a-project",
+		language: "python",
+		the_command_to_run: ["/bin/sh", "-c", `echo '${what_it_should_print}'; exit 1`],
+	};
+}
+
+describe("the sentence that explains a verdict", () => {
+	// **The timing was in the sentence, and the sentence is what the state holds.** A real run found
+	// this: every run reported `has_changed=true` because the suite's own duration was inside the
+	// sentence the verdict explains itself with, so a page that rebuilds hourly republished itself
+	// every time — the entire cost the skip exists to avoid, paid for a fact about how long a suite
+	// took rather than about the family.
+	//
+	// The fix is here rather than in the comparison because the comparison is right: a state's facts
+	// are its facts. And the sentence stays, because a reader reads it — it just does not carry a
+	// number that changes every run.
+	const a_run_that_took_a_moment = "1 failed, 912 passed, 3 skipped in 4.12s";
+	const a_run_that_took_a_while = "1 failed, 912 passed, 3 skipped in 19.87s";
+
+	it("does not carry how long the suite took", () => {
+		const the_first = read_the_suite(a_project_whose_suite_prints(a_run_that_took_a_moment), process.cwd(), true);
+		assert.doesNotMatch(
+			the_first.why_not,
+			/\d+\.\d+s|\d+m\d|\b\d+s\b/,
+			`the sentence a reader reads carries a duration: ${the_first.why_not}. Two runs of an unchanged ` +
+				"family then differ, and a page that rebuilds itself republishes itself every time.",
+		);
+	});
+
+	it("carries the exit code and the counts, so it still explains itself", () => {
+		const the_run = read_the_suite(a_project_whose_suite_prints(a_run_that_took_a_moment), process.cwd(), true);
+		assert.match(the_run.why_not, /exited 1/, "the sentence no longer says what the suite exited");
+		assert.match(the_run.why_not, /912 passed/, "the sentence no longer says how many passed");
+	});
+
+	it("is the same sentence for two runs that differ only in how long they took", () => {
+		const the_first = read_the_suite(a_project_whose_suite_prints(a_run_that_took_a_moment), process.cwd(), true);
+		const the_second = read_the_suite(a_project_whose_suite_prints(a_run_that_took_a_while), process.cwd(), true);
+		assert.equal(
+			the_first.why_not,
+			the_second.why_not,
+			"two runs of a family that changed nothing produced two different explanations, and that is " +
+				"what makes a page that updates itself republish itself every single time.",
 		);
 	});
 });
