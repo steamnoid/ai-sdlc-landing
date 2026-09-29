@@ -29,6 +29,19 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+    inputs:
+      # **The keepalive's branch is forty-five days away, and this is how it is reached today.**
+      # A schedule is the only thing that would otherwise reach it, and the schedule has run twice
+      # in seventeen hours — so "wait and see" is not a plan for a rescue mechanism. This says out
+      # loud that the silence is long enough, and the script then acts on that word.
+      #
+      # **It is a word, not a date.** Nothing here pretends to be a fact about the repository, and
+      # the log still prints the real age of the last commit, so a run done this way is visibly not
+      # a run the schedule would have done.
+      as_if_the_silence_were_long_enough:
+        description: "Run the keepalive as though this repository had been quiet for 45 days"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -212,7 +225,9 @@ jobs:
     # An empty commit costs a collector run, not a deployment — `has_changed` will be false and the
     # build will skip, which is the whole of what a commit here is for.
     needs: collect
-    if: github.event_name == 'schedule'
+    # **The schedule, or a person saying so.** The condition is one `||` because the two are
+    # answers to the same question — is it time to push a commit — asked by two different things.
+    if: github.event_name == 'schedule' || inputs.as_if_the_silence_were_long_enough == true
     runs-on: ubuntu-latest
     # **`contents: write`, and it is the only job that asks.** The workflow grants `contents: read`
     # because nothing else may write this repository — and nothing else should: `Read the four
@@ -231,4 +246,9 @@ jobs:
           # it judges.
           fetch-depth: 0
       - name: Push a commit if the silence is nearly long enough
+        env:
+          # **Zero, and not a flag.** The script is asked for a number of days rather than told
+          # whether to believe itself, so the thing it prints and the thing it acts on are the same
+          # question. `&& 0 || 45` is the only way GitHub has to say one thing or the other.
+          THE_LIMIT: ${{ inputs.as_if_the_silence_were_long_enough && 0 || 45 }}
         run: node scripts/keep_the_schedule_alive.mjs

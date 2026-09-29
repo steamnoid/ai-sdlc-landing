@@ -53,14 +53,14 @@ export function the_silence_is_long_enough(how_many, the_limit = THE_LIMIT) {
  * might be a repository about to go dark, which is the one case where a wrong answer is costly, so
  * it says which directory it could not read and pushes nothing.
  */
-export function keep_the_schedule_alive({ at = process.cwd() } = {}) {
+export function keep_the_schedule_alive({ at = process.cwd(), the_limit = THE_LIMIT } = {}) {
 	const the_silence = how_many_days_since_the_last_commit(at);
 	if (!the_silence.was_counted) {
 		return a_failure(`the schedule pushed nothing: ${the_silence.why_not}`, the_silence.why_not);
 	}
 
-	if (!the_silence_is_long_enough(the_silence.how_many)) {
-		return a_silence_that_is_not_long_enough_yet(the_silence.how_many);
+	if (!the_silence_is_long_enough(the_silence.how_many, the_limit)) {
+		return a_silence_that_is_not_long_enough_yet(the_silence.how_many, the_limit);
 	}
 
 	for (const a_command of THE_COMMANDS_THAT_MAKE_THE_COMMIT) {
@@ -82,7 +82,7 @@ export function keep_the_schedule_alive({ at = process.cwd() } = {}) {
 	return {
 		a_commit_was_pushed: true,
 		what_it_said:
-			`the last commit was ${the_silence.how_many} days ago, the limit is ${THE_LIMIT}, and an empty ` +
+			`the last commit was ${the_silence.how_many} days ago, the limit is ${the_limit}, and an empty ` +
 			`commit was pushed because ${THE_REASON}`,
 		why_not: null,
 	};
@@ -96,11 +96,11 @@ export function keep_the_schedule_alive({ at = process.cwd() } = {}) {
  * nothing. A run that reported this as a failure would go red on nearly every run, and a red run
  * nobody can act on is worse than a green run that lies.
  */
-function a_silence_that_is_not_long_enough_yet(how_many) {
+function a_silence_that_is_not_long_enough_yet(how_many, the_limit) {
 	return {
 		a_commit_was_pushed: false,
 		what_it_said:
-			`the last commit was ${how_many} days ago and the limit is ${THE_LIMIT}, ` +
+			`the last commit was ${how_many} days ago and the limit is ${the_limit}, ` +
 			"so the schedule pushed nothing",
 		why_not: null,
 	};
@@ -135,9 +135,14 @@ function why_this_git_command_failed(the_arguments, at) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const what_happened = keep_the_schedule_alive(
-		process.argv[2] === undefined ? {} : { at: process.argv[2] },
-	);
+	// **A number, and not a flag.** The workflow asks for a number of days rather than telling
+	// the script whether to believe itself, so the age the script prints and the age it acts on are
+	// the same question answered once. An operator asking for this to run now says zero, which is
+	// not a claim about the repository and says so in the log beside the real number of days.
+	const what_happened = keep_the_schedule_alive({
+		...(process.argv[2] === undefined ? {} : { at: process.argv[2] }),
+		...(process.env.THE_LIMIT === undefined ? {} : { the_limit: Number(process.env.THE_LIMIT) }),
+	});
 	process.stdout.write(`${what_happened.what_it_said}\n`);
 	if (what_happened.why_not !== null) {
 		process.stderr.write(`${what_happened.why_not}\n`);

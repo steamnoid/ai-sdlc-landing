@@ -45,7 +45,23 @@ function the_workflow() {
 		{ encoding: "utf8" },
 	);
 	assert.equal(the_reading.status, 0, `the workflow could not be read, and said:\n${the_reading.stderr}`);
-	return JSON.parse(the_reading.stdout);
+	return with_the_triggers_named_the_way_the_file_spells_them(JSON.parse(the_reading.stdout));
+}
+
+/**
+ * Put the triggers back under `on`, because YAML 1.1 reads that key as the boolean true.
+ *
+ * **One reader in this repository, and every test goes through it.** A test that wanted the
+ * triggers found nothing under `.on` and no test said why, because the file spells it `on` and
+ * the answer came back as `true`. GitHub's own parser reads it as the word, so the file is
+ * right and the reading is the thing that needs fixing — and fixing it once here beats fixing it
+ * in every test that will ever want to know what makes this workflow run.
+ */
+function with_the_triggers_named_the_way_the_file_spells_them(the_workflow) {
+	if (!(true in the_workflow)) {
+		return the_workflow;
+	}
+	return { ...the_workflow, on: the_workflow[true] };
 }
 
 describe("the workflow that publishes the page", () => {
@@ -376,4 +392,55 @@ function the_job_named(the_name) {
 	}
 	return the_jobs[the_one[0]];
 }
+
+describe("the keepalive, and the one thing that can make its branch reachable", () => {
+	// **The branch is forty-five days away and the schedule drops most of its hours**, so there
+	// is no honest way to find out whether it works before the day a repository needs it. Between
+	// 18:17 on the 28th and 11:17 on the 29th seventeen hourly slots came due and two ran — the
+	// measurement is in `AGENTS.md` and it is small and stated as small.
+	//
+	// A dispatch that says *as though the silence were long enough* is how an operator finds out
+	// in a minute what a schedule would not tell them for a month. It is an input and not a
+	// change of behaviour: the schedule still decides on its own, and a dispatch that does not ask
+	// still runs nothing.
+	it("offers a dispatch that reaches it, and names what that dispatch is pretending", () => {
+		const the_inputs = the_workflow().on.workflow_dispatch?.inputs ?? {};
+		assert.ok(
+			"as_if_the_silence_were_long_enough" in the_inputs,
+			`the workflow offers no way to run the keepalive on demand; its dispatch offers ${
+				JSON.stringify(Object.keys(the_inputs))
+			}. The branch is unreachable for forty-five days, and a rescue mechanism nobody can exercise ` +
+				"is one whose first exercise is the day a repository is going dark.",
+		);
+	});
+
+	it("runs the keepalive on a dispatch that asks, and on nothing else", () => {
+		const the_keepalive = the_workflow().jobs.keepalive;
+		assert.match(
+			the_keepalive.if ?? "",
+			/as_if_the_silence_were_long_enough/,
+			"the dispatch input exists and the keepalive does not look at it, so pressing the button " +
+				"changes nothing and the input is a lie told to an operator.",
+		);
+		assert.match(
+			the_keepalive.if ?? "",
+			/github\.event_name == 'schedule'/,
+			"the keepalive no longer runs on the schedule. It is the only thing standing between a quiet " +
+				"repository and GitHub switching the schedule off, and it is the one path that has never run.",
+		);
+	});
+
+	it("hands the script the limit the operator asked for, rather than the one it guesses at", () => {
+		const the_step = the_workflow().jobs.keepalive.steps.find(
+			(a_step) => (a_step.run ?? "").includes("keep_the_schedule_alive"),
+		);
+		assert.ok(the_step, "the keepalive no longer calls the script that holds the decision");
+		assert.match(
+			JSON.stringify(the_step.env ?? {}),
+			/as_if_the_silence_were_long_enough/,
+			"the input never reaches the script, so the script would count the days itself, find forty-five " +
+				"is not enough, and say so — which is a correct answer to a question nobody asked.",
+		);
+	});
+});
 

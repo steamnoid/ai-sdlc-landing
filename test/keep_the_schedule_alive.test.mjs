@@ -296,3 +296,47 @@ function run_the_command() {
 	});
 }
 
+describe("an operator who says the silence is long enough", () => {
+	// **A limit and not a flag**, so the age the script prints and the age it acts on are the same
+	// question. The workflow passes zero; a flag would have left the script printing "the limit is
+	// 45" beside a commit it pushed because of something else entirely, which is a log that cannot
+	// be believed when it is the only evidence there is.
+	it("acts on the number it is given rather than the one it holds", () => {
+		the_repository_goes_silent(3);
+
+		const what_happened = keep_the_schedule_alive({ at: a_checkout, the_limit: 0 });
+
+		assert.equal(
+			what_happened.a_commit_was_pushed,
+			true,
+			"the limit was given as zero and nothing was pushed, so the workflow's input does not reach " +
+				"the code that acts on it",
+		);
+		assert.match(what_happened.what_it_said, /the limit is 0/, "the log does not say which limit it acted on");
+	});
+
+	it("still says how many days it really has been, so a forced run is not a scheduled one", () => {
+		the_repository_goes_silent(3);
+
+		const what_happened = keep_the_schedule_alive({ at: a_checkout, the_limit: 0 });
+
+		assert.match(
+			what_happened.what_it_said,
+			/3 days ago/,
+			"the run pushed a commit and did not say how quiet the repository actually is, so a reader of " +
+				"the log cannot tell a run an operator forced from one the schedule asked for",
+		);
+	});
+
+	it("pushes nothing when the limit is the one it holds, which is what a dispatch that asks for nothing does", () => {
+		the_repository_goes_silent(3);
+
+		const what_happened = keep_the_schedule_alive({ at: a_checkout });
+
+		assert.equal(
+			what_happened.a_commit_was_pushed,
+			false,
+			"three days is not forty-five and a commit was pushed, so the default is no longer the default",
+		);
+	});
+});
