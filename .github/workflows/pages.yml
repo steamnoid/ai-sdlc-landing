@@ -200,6 +200,16 @@ jobs:
     needs: collect
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    # **`contents: write`, and it is the only job that asks.** The workflow grants `contents: read`
+    # because nothing else may write this repository — and nothing else should: `Read the four
+    # repositories` runs four other people's test suites on a runner holding this repository's token,
+    # and a job that can push is a job that can change what the page says.
+    #
+    # This job was granted only the read it inherited, so `git push` had no token to push with. It
+    # had failed twice already, both times on an `awk` this repository had also fixed, and fixing
+    # the `awk` had fixed the first of the two reasons it could not work.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -207,13 +217,4 @@ jobs:
           # it judges.
           fetch-depth: 0
       - name: Push a commit if the silence is nearly long enough
-        run: |
-          set -euo pipefail
-          days_since=$(node scripts/how_many_days_since_the_last_commit.mjs)
-          echo "the last commit was $days_since days ago"
-          if [ "$days_since" -ge 45 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit --allow-empty -m "chore(page): the schedule kept itself alive"
-            git push
-          fi
+        run: node scripts/keep_the_schedule_alive.mjs

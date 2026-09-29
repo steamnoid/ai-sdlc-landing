@@ -321,3 +321,59 @@ describe("every action the workflow names, and the version it names it at", () =
 	});
 });
 
+describe("a token holds what the job it belongs to needs, and nothing more", () => {
+	// **The keepalive pushes a commit and was granted a token that cannot push one.** The workflow
+	// says `contents: read` and the keepalive runs `git push`, so the one job whose entire purpose
+	// is to push a commit could not push one. It had already failed twice, both times on an `awk`
+	// that this repository fixed — and fixing the awk fixed the first of two reasons it could not
+	// work, which is the shape of a change that has been given credit for a repair it did not make.
+	//
+	// **The other direction is the reason the workflow is shaped this way.** `Read the four
+	// repositories` runs four repositories' own test suites: arbitrary code from four other people,
+	// on a runner, holding this repository's token. That job must not be able to write here. The
+	// build job is the same and is the one that runs `npm run build`, so it does not get it either.
+	it("lets the keepalive push the empty commit that is its whole purpose", () => {
+		const the_keepalive = the_job_named("Keep the schedule alive");
+		assert.equal(
+			the_keepalive.permissions?.contents,
+			"write",
+			"the keepalive runs `git push` and is granted a token that cannot push. It is the only " +
+				"job whose reason to exist is a commit, and it is the one job that cannot make one.",
+		);
+	});
+
+	it("does not let the job running four repositories' test suites write here", () => {
+		const the_collect = the_job_named("Read the four repositories");
+		assert.notEqual(
+			the_collect.permissions?.contents,
+			"write",
+			"the job that runs four other repositories' test suites can push to this one. That is " +
+				"arbitrary code from four other people holding a token that can change what the page says.",
+		);
+	});
+
+	it("does not let the job that builds the page write here either", () => {
+		const the_build = the_job_named("Build the page");
+		assert.notEqual(
+			the_build.permissions?.contents,
+			"write",
+			"the job that runs this repository's own build is granted a write token it never uses. " +
+				"A job is granted what it needs, and a build needs to write no history to publish a page.",
+		);
+	});
+});
+
+/** The one job with this name, or a failure naming what was there instead. */
+function the_job_named(the_name) {
+	const the_jobs = the_workflow().jobs;
+	const the_names = Object.keys(the_jobs);
+	const the_one = the_names.filter((a_name) => the_jobs[a_name].name === the_name);
+	if (the_one.length !== 1) {
+		assert.fail(
+			`there is no single job named "${the_name}"; the workflow has ${JSON.stringify(the_names)}. ` +
+				"A test that silently found nothing has just proved nothing.",
+		);
+	}
+	return the_jobs[the_one[0]];
+}
+
