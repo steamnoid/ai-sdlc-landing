@@ -56,24 +56,42 @@ jobs:
         with:
           python-version: "3.13"
 
-      # A Python project's own domain imports pydantic, and the collector imports that
-      # project's code in this process — so `uv` and one environment per project are both
-      # needed before anything is read. The two Rust projects need no setup at all, and that
-      # asymmetry is why the install step says which projects it is for.
-      - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      # **uv, installed and cached by an action rather than by a shell pipe.** Two `uv sync
+      # --all-extras` runs of a langchain and langgraph dependency tree is the largest part of what a
+      # run waits for, and the tree is identical every time the projects have not moved.
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
 
+      # The four repositories are checked out first and everything else happens after, because the
+      # Rust cache keys on the `Cargo.lock` files it is pointed at and they have to exist first.
       - name: Check out the four repositories
         run: |
           set -euo pipefail
           for one in $THE_PROJECTS; do
             the_name="${one%%:*}"
-            the_language="${one##*:}"
             git clone --quiet --branch "$THE_BRANCH" "https://github.com/steamnoid/$the_name.git" "build/$the_name"
-            echo "::group::$the_name ($the_language)"
-            if [ "$the_language" = "python" ]; then
-              uv sync --all-extras --project "build/$the_name"
-            fi
+          done
+
+      # **The two Rust workspaces, keyed on the two lock files.** A dependency moving is a new
+      # compile; a commit that touches no manifest is not. A cache keyed on the commit instead would
+      # miss every run and upload a fresh copy of every build each time — costing more than the run
+      # it was meant to shorten, and looking exactly like a working cache.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            build/ai-sdlc-app-rs -> target
+            build/ai-sdlc-app-rs-plus -> target
+
+      - name: Give each Python project its dependencies
+        run: |
+          set -euo pipefail
+          for one in $THE_PROJECTS; do
+            the_name="${one%%:*}"
+            the_language="${one##*:}"
+            [ "$the_language" = "python" ] || continue
+            echo "::group::$the_name"
+            uv sync --all-extras --project "build/$the_name"
             echo "::endgroup::"
           done
 

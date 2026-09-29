@@ -156,28 +156,41 @@ export function read_the_suite(a_project, at, was_it_asked_to_run) {
 
 	const what_it_printed = `${the_run.stdout ?? ""}${the_run.stderr ?? ""}`;
 	const the_it_ran_out_of_time = the_run.error?.code === "ETIMEDOUT";
-	const what_the_suite_said = the_lines_the_counts_are_on(what_it_printed, a_project.language).join(" | ");
+	const the_counts = the_counts_in(what_it_printed, a_project.language);
 
 	return {
 		was_run: true,
 		is_green: the_run.status === 0,
 		exit_code: the_run.status,
-		...the_counts_in(what_it_printed, a_project.language),
-		// **The timing is taken out of the sentence, and the sentence is the one a reader reads.**
-		// `pytest` ends with `913 passed in 4.12s` and that line is what the verdict explains itself
-		// with, so the sentence said a different number of seconds on every run. That made every
-		// state differ from the last one, `has_changed` was always true, and a page that rebuilds
-		// itself hourly republished itself every single time — the whole cost the skip exists to
-		// avoid, paid in full, for a fact about how long a suite took rather than about the family.
+		...the_counts,
 		why_not: the_it_ran_out_of_time
 			? "the suite ran for twenty minutes and was stopped, so nothing is known about whether it passes"
-			: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${without_a_duration(what_the_suite_said)}`,
+			: `the suite exited ${the_run.status}, and only an exit code of 0 is green: ${what_the_counts_say(the_counts)}`,
 		what_it_printed,
 		what_was_run: the_command.the_command.join(" "),
 	};
 }
 
-/** A summary line without the time it took, which is a fact about the run and not about the family. */
-function without_a_duration(a_summary) {
-	return a_summary.replace(/\s+in \d+(\.\d+)?(m?s)\b/g, "").replace(/\s*\|\s*$/, "");
+/**
+ * The sentence a reader reads, said in counts rather than in quoted output.
+ *
+ * **Two things were wrong with it and both were found by running the real family.** It pasted
+ * every `test result:` line a `cargo` run printed — around sixty of them, which is fifteen
+ * thousand characters on a card that has room for a sentence — and it carried the duration
+ * `pytest` ends its last line with, so the sentence differed on every run, every state differed
+ * from the last, `has_changed` was always true, and a page that rebuilds itself republished
+ * itself every time. That is the whole cost the skip exists to avoid, paid for a fact about how
+ * long a suite took rather than about the family.
+ *
+ * **Counts and a binary count, and nothing else.** "540 passed, 0 failed across 61 binaries" is
+ * checkable against the run; sixty quoted lines are not, because a reader cannot hold them.
+ */
+function what_the_counts_say(the_counts) {
+	if (the_counts.passed === null) {
+		return "the suite printed no counts, so nothing is known about how far it got";
+	}
+	const how_many_binaries =
+		the_counts.how_many_binaries > 1 ? ` across ${the_counts.how_many_binaries} binaries` : "";
+	const the_failures = the_counts.failed > 0 ? `, ${the_counts.failed} failed` : "";
+	return `${the_counts.passed} passed${the_failures}${how_many_binaries}`;
 }

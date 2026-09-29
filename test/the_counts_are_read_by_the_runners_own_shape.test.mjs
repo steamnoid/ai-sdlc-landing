@@ -194,3 +194,51 @@ describe("the sentence that explains a verdict", () => {
 		);
 	});
 });
+
+describe("a sentence a reader is asked to read", () => {
+	// **The one this page publishes for a Rust project was fifteen thousand characters long.** A
+	// `cargo` run prints a `test result:` line per test binary and there are around sixty of them,
+	// and the sentence explaining the verdict pasted every one in. A reader cannot hold sixty lines
+	// and check them against a run, so the number that was printed was the number nobody could use.
+	const a_workspace_run = [
+		...Array.from({ length: 60 }, (_, where) => `test result: ok. ${where + 1} passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.0${where % 9}s`),
+	].join("\n");
+
+	it("is a sentence rather than every line the runner printed", () => {
+		const the_run = read_the_suite(
+			{ name: "a-project", language: "rust", the_command_to_run: ["/bin/sh", "-c", `printf '%s\\n' '${a_workspace_run}'; exit 0`] },
+			process.cwd(),
+			true,
+		);
+		assert.ok(
+			the_run.why_not.length < 120,
+			`the sentence is ${the_run.why_not.length} characters long. It quotes every \`test result:\` ` +
+				"line a cargo run printed, which is about sixty of them, and a reader cannot hold sixty " +
+				"lines nor check them against a run of their own.",
+		);
+	});
+
+	it("still says what passed, what failed and how many binaries", () => {
+		const the_run = read_the_suite(
+			{ name: "a-project", language: "rust", the_command_to_run: ["/bin/sh", "-c", `printf '%s\\n' '${a_workspace_run}'; exit 0`] },
+			process.cwd(),
+			true,
+		);
+		assert.match(the_run.why_not, /\d+ passed/, "the sentence no longer says how many passed");
+		assert.match(the_run.why_not, /across 60 binaries/, "the sentence no longer says how many binaries it added up");
+	});
+
+	it("keeps the whole output, because a reader may want the lines a sentence cannot hold", () => {
+		const the_run = read_the_suite(
+			{ name: "a-project", language: "rust", the_command_to_run: ["/bin/sh", "-c", `printf '%s\\n' '${a_workspace_run}'; exit 0`] },
+			process.cwd(),
+			true,
+		);
+		assert.ok(
+			the_run.what_it_printed.length > 1000,
+			"the raw output was shortened as well as the sentence. The sentence is what a reader reads; " +
+				"the output is what a reader checks it against, and the page publishes both for that reason.",
+		);
+	});
+});
+
