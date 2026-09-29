@@ -182,6 +182,36 @@ on a schedule — are exactly the places a rescue mechanism lives.
 
 ---
 
+# Two ways the keepalive had never been kept alive
+
+The table above is about runs that go green having published nothing. These are the other kind,
+and they are worse, because a run that has never happened cannot report anything at all.
+
+**The job could not push the commit it existed to push.** The workflow grants `contents: read`
+to everything, and the keepalive ran `git push` — so the one job whose entire purpose is a commit
+had no token to make one with. It had already failed twice, both times on the `awk` above, and
+**fixing the `awk` was credited with repairing the job.** That left the second reason it could
+not work sitting in the same file, and no run could have found it, because the `git push` it
+blocked is the reason the job rarely runs.
+
+**The branch was unreachable for forty-five days, so the day the keepalive was most needed
+would have been the first day anybody saw it.** The count was a script by then, and the decision,
+the identity, the commit and the push were still four lines of shell in the YAML — the same rule
+this file writes, applied to half of what it named.
+
+Both are fixed and both are now observable: `scripts/keep_the_schedule_alive.mjs` is the whole of
+it, and `test/keep_the_schedule_alive.test.mjs` builds a checkout with a bare remote, ages its
+first commit, and asserts that a commit **arrived at the remote** rather than merely appearing
+locally. That distinction is the entire purpose. GitHub watches the repository and not the runner,
+so a commit that stays in the checkout is not activity and keeps nothing alive.
+
+**What is still not proven is the runner, and it is now a much smaller thing to be unsure
+about.** Everything that can be decided without GitHub is decided by a test; what remains is
+whether `git push` reaches github.com from a runner with a token, which is the most ordinary
+sentence in this file.
+
+---
+
 # The parts that are not built yet
 
 Written down because a repository that lists its intentions next to its code is a
