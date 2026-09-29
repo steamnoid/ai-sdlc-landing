@@ -128,14 +128,22 @@ one that should have run at 21:17 started at 05:47. GitHub's own note that sched
 can be delayed and that queued jobs are dropped under load is the reason `:17` rather than
 `:00`; two hours is further than that note implies, and it is what happened here.
 
-**So the page publishes roughly every two hours, not every hour**, and each run takes about
-three and a half minutes — which is minutes of a runner, and less than it looks.
+**So the page publishes roughly every two hours, not every hour**, and a run takes between
+three and a half and four minutes.
 
 **A page that updates itself still has to have a way not to.** The skip is worth keeping for
 the case where nothing changes, and this repository did not have one that worked: the suite's
 own duration was inside the sentence explaining its verdict, so every state differed from the
 last one and the skip could never fire. That is the failure the skip exists to prevent,
 prevented by the thing it was comparing.
+
+**The two toolchains are cached, and the saving is smaller than expected: thirty seconds.**
+Measured on consecutive runs, three minutes forty-seven cold and three minutes seventeen with
+all three caches restored — the uv tree at 77 MB, the two Rust workspaces at 192 MB, the
+node modules at 50 MB. What the cache saved was the compilation, and what the run mostly
+waits for is the four test suites actually executing. It is kept because thirty seconds every
+two hours is free, and it is written here because the estimate this repository started with
+was a guess and the sentence above is not.
 
 ---
 
@@ -191,7 +199,6 @@ skimmed precisely when somebody is about to add the thing it does not mention.
 | `github.read_file`-style reading at a ref | not built, and not wanted here — this page reads checkouts, not revisions |
 | per-phase delivery dates | not built. The phases are read and their marks reported; nothing says when a phase moved |
 | an activity history | not built. The commits of the four are not on the page, because a page that rebuilds hourly would republish a history it read fresh each time and the reader would learn nothing from the difference |
-| caching the two Rust builds in CI | **not built.** A run takes about three and a half minutes and happens roughly every two hours, which is a few dozen minutes of a runner a day; `actions/cache` over `~/.cargo` and each project's `target/` is what would take it to a few, and it is not in the workflow |
 
 **And the two things that are deliberately not here.** A `SOURCES.lock` for this page, because
 it is a view and pins a *source* — the family itself is four changing repositories, and a hash
