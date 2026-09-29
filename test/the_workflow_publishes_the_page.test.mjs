@@ -135,4 +135,83 @@ describe("the workflow that publishes the page", () => {
 				"cannot be checked against a family by a reader.",
 		);
 	});
+
+	it("builds the page when a person asked for it, not only when something changed", () => {
+		// **A manual dispatch is a request, and this workflow was refusing it.** `build` was guarded
+		// on `has_changed == 'true'` alone, so a person who pressed *Run workflow* got `collect` green
+		// and then silence — because the state was identical to the published one, which is the normal
+		// state of a page that is working. The skip is right for a schedule and wrong for a person,
+		// and the guard could not tell the two apart.
+		const the_build = the_workflow().jobs.build;
+		assert.match(
+			the_build.if ?? "",
+			/workflow_dispatch/,
+			"the build is not reachable by a manual dispatch. A person asking for a rebuild is not the " +
+				"same as nothing having changed, and a guard that cannot tell them apart refuses the " +
+				"request — with a green first stage and then silence, which is the hardest shape of " +
+				"failure to notice and the easiest to cause.",
+		);
+		assert.match(
+			the_build.if ?? "",
+			/has_changed/,
+			"the build would then publish on every schedule regardless of whether anything changed, " +
+				"which throws the skip away rather than widening it.",
+		);
+	});
+
+	it("keeps the rescue job off the chain of jobs that are allowed to be skipped", () => {
+		// **The rescue mechanism hung off the thing it was meant to rescue.** `keepalive` had
+		// `needs: deploy`, and `deploy` needs `build`, and `build` is skipped whenever nothing changed —
+		// which is exactly the situation a keepalive exists for. A page that updates hourly and is
+		// therefore *always* current would never have run the job that stops GitHub disabling the
+		// schedule after sixty quiet days. It entered on its first run by luck: that run happened to
+		// find eleven changed facts.
+		const the_jobs = the_workflow().jobs;
+		const the_rescue = the_jobs.keepalive;
+		assert.ok(the_rescue, "there is no job to keep the schedule alive");
+
+		const what_it_needs = [the_rescue.needs].flat();
+		assert.deepEqual(
+			what_it_needs,
+			["collect"],
+			`the rescue job needs [${what_it_needs.join(", ")}]. Anything reachable only through \`build\` ` +
+				"is reachable only when something changed, and nothing changing is the state a keepalive " +
+				"exists to survive.",
+		);
+
+		for (const a_job_name of what_it_needs) {
+			assert.equal(
+				the_jobs[a_job_name].if ?? null,
+				null,
+				`the rescue job needs "${a_job_name}", and that job is itself conditional — so the ` +
+					"rescue runs only when the condition happens to hold.",
+			);
+		}
+	});
+
+	it("runs no action on a Node version GitHub has deprecated", () => {
+		// `actions/checkout@v4` targets Node 20 and GitHub forces it onto Node 24, printing a
+		// deprecation warning on every run. It works today and stops working on a date nobody chose.
+		//
+		// **The workflow as JSON, and both quote styles are matched** — the first version of this
+		// looked for a single quote after `uses:`, which JSON never produces, so it found no actions
+		// at all and the loop below it had nothing to check. A test that passes because it looked for
+		// the wrong thing is the same failure as the one it was written to catch.
+		const the_read_workflow = the_workflow();
+		const the_every_action = JSON.stringify(the_read_workflow).match(/uses\\?":\s*\\?"([^"\\]+)\\?"/g) ?? [];
+		assert.ok(
+			the_every_action.length > 0,
+			"the workflow names no action, so this test checked nothing. A guard that finds nothing to " +
+				"look at passes, which is why the count is asserted before the loop rather than after it.",
+		);
+		for (const a_use of the_every_action) {
+			assert.match(
+				a_use,
+				/@v([5-9]|\d{2,})/,
+				`the workflow uses ${a_use}, which targets a Node version GitHub has deprecated. The run ` +
+					"still succeeds — forced onto a newer runtime than it was written for — so the " +
+					"warning is easy to scroll past.",
+			);
+		}
+	});
 });
