@@ -1,14 +1,28 @@
 name: the page
 
 # A page that only updates when somebody pushes it goes stale the moment a project moves,
-# and this is the whole reason the page exists. It reads the four repositories every hour
+# and this is the whole reason the page exists. It reads the four repositories on a schedule
 # and publishes only when a fact on it changed.
 #
-# **Seventeen past the hour, and hourly rather than daily.** GitHub documents that a
-# scheduled workflow can be delayed and that under load some queued jobs are dropped — and
-# :00 is the minute everybody else asks for, because everybody writes hourly schedules with
-# `0 0 * * *`. Hourly rather than daily because a job that is dropped is an hour of
-# staleness rather than a day of it.
+# **What was asked for and what arrives are two different numbers, and the file records the
+# second one rather than the first.** The cron is hourly at seventeen past, and between
+# 18:17 on the 28th and 11:17 on the 29th seventeen of those hours came due and two ran — at
+# 23:19, which is two minutes late, and at 05:47, which is thirty. No run waited in a queue:
+# every one of the fifteen runs this repository has had began the second it was created.
+# Seventeen became two, and nobody was told.
+#
+# That is the measurement and it is small, and it is written here as a measurement rather than
+# as a rate. An eighteen-hour-old repository is not evidence about a schedule that is supposed
+# to run for years, and the honest statement is what was seen and how long for. The next
+# reader who wants to know should re-read it, not trust it.
+#
+# **Seventeen past the hour is still the right minute** and the reasoning for it has not
+# changed: :00 is the minute everybody asks for, because everybody writes hourly schedules
+# with `0 0 * * *`. What has changed is the argument that hourly beats daily, which said that
+# a dropped job is an hour of staleness rather than a day of it. If most of them are dropped
+# then a dropped job is five hours, and the argument does not hold. The page says when it
+# last read the family, so a reader is never misled by how long ago that was; the cadence here
+# is a claim about this repository, and a claim like that is the kind this file does not make.
 on:
   push:
     branches: [main]

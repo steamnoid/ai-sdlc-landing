@@ -141,14 +141,36 @@ above that line said the fresh clone could not be built and then did nothing abo
 
 # What the schedule actually does, measured rather than assumed
 
-**The `17 * * * *` in this workflow fires between one and two hours late.** Two scheduled
-runs, both roughly two hours behind: one that should have run at 19:17 started at 23:19, and
-one that should have run at 21:17 started at 05:47. GitHub's own note that scheduled workflows
-can be delayed and that queued jobs are dropped under load is the reason `:17` rather than
-`:00`; two hours is further than that note implies, and it is what happened here.
+**An earlier version of this section was worse than having none, and it is worth saying how.**
+It read: *"`17 * * * *` fires between one and two hours late — one that should have run at
+19:17 started at 23:19, and one that should have run at 21:17 started at 05:47"* and concluded
+the page publishes every two hours. Both correspondences were invented. Nothing said which
+cron slot a run was answering, the two runs were five and a half hours apart, and a rate was
+built out of two points by choosing which hour each one belonged to. A confident number
+nobody measured is worse than a missing one, because the missing one gets looked up.
 
-**So the page publishes roughly every two hours, not every hour**, and a run takes between
-three and a half and four minutes.
+**What was measured, with the window it was measured over.** The repository was created at
+17:44 on the 28th. Between 18:17 that evening and 11:17 the next morning, seventeen of those
+hourly slots came due and **two ran** — at 23:19, two minutes past the hour, and at 05:47,
+which is not past any hour the schedule asks for.
+
+**Nothing waited in a queue.** All fifteen runs this repository has had began in the same
+second they were created, the two scheduled ones included. So the two were not pushed back by
+a busy runner; the other fifteen hours produced nothing to push them back, and the API shows
+no run for them at all. Whatever drops them, it does not drop them from the front of a queue.
+
+**The page says when it last read the family** — `Read from 4 of 4 repositories, 2026-09-29
+10:42 UTC` is on it, and in the sentence about what a reader may check. That is why the
+cadence does not have to be right to be honest: a reader can see the age of the page rather
+than trust a claim about it. **This paragraph is the claim, and it is the one that goes
+stale.** Eighteen hours is a small window and a schedule meant to run for years is not
+judged by it, so the honest statement is what was seen, over how long, and the instruction to
+a later reader is to measure it again rather than to believe it.
+
+**The argument that hourly beats daily has stopped holding and is not repeated here.** It
+rested on a dropped job costing an hour of staleness rather than a day. If most of them are
+dropped then a dropped job costs five, and picking one interval over another buys nothing
+that the page's own provenance line does not already give the reader for free.
 
 **A page that updates itself still has to have a way not to.** The skip is worth keeping for
 the case where nothing changes, and this repository did not have one that worked: the suite's
