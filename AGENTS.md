@@ -97,13 +97,24 @@ offline cannot be checked.
 already there, which is what you want while you are changing a project. `--clone` reads
 the branch as everybody else sees it, which is what the page is about.
 
-**A fresh clone of this repository on its own runs two tests red, and both are refusing.**
+**A fresh clone of this repository on its own runs one test red, and it is refusing.**
 `test/the_documents_agree_with_the_tree.test.mjs` checks that what the documents claim about
 the family is what the family's trees hold, so it needs the four projects checked out beside
-this one; `test/the_page_says_only_what_the_state_says.test.mjs` reads a state and compares
-the page against it, so it needs `npm run collect` to have run. Each says so in its failure
-message rather than passing, and a green run in their place would have meant nothing — which
-is the arrangement working, not a bug to fix.
+this one. It says so in its failure message rather than passing, and a green run in its place
+would have meant nothing — which is the arrangement working, not a bug to fix.
+
+**It used to be four, and two of them were a test that had nowhere to look.** The page's own
+test — the one that asks the built page whether it says only what the state says — read
+`src/state/the_family.json` and refused to run without it. Every assertion in it is relative
+to a state, and relative to a state is something a test brings or something it can only hope
+for; it was a test that ran on the laptop where a collector had last run and nowhere else. It
+now collects the four committed fixture trees, which is a real reading by the real collector
+and is the same on every machine.
+
+`test/the_page_says_it_has_nothing_to_say.test.mjs` carried a constant naming that same path
+and never used it, and a guard against tests reaching into `src/state` found it on the run
+after it was added. That is the second time a guard has earned its keep here by failing on
+code written minutes earlier, which is the argument for writing them.
 
 **That is a decision and it costs something.** The gate is not runnable on a machine that
 does not have the family, so a contributor without it has no cheap way to check a change. It

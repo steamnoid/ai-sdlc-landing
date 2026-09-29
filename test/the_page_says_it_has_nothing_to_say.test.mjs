@@ -23,7 +23,6 @@ import { build_the_page, the_words_on_the_page } from "./build_the_page.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const at = join(here, "..");
-const where_the_state_lives = join(at, "src", "state", "the_family.json");
 
 describe("a page built with no state", () => {
 	let the_words = "";

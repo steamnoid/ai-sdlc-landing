@@ -23,36 +23,77 @@
  */
 
 import { strict as assert } from "node:assert";
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import { build_the_page, the_words_on_the_page } from "./build_the_page.mjs";
 import { what_the_family_declares } from "../src/page/what_the_family_declares.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const at = join(here, "..");
-const where_the_state_lives = join(at, "src", "state", "the_family.json");
 
-if (!existsSync(where_the_state_lives)) {
-	it("the page's own test needs a state, and there is none", () => {
-		assert.fail(
-			`there is no state at ${where_the_state_lives}. Run \`npm run collect\` first — this test ` +
-				"reads the state and then asks the built page whether it says the same thing, so with no " +
-				"state there is nothing to compare and a green run would mean nothing.",
-		);
-	});
-} else {
+/**
+ * A state this test collected, over the four fixture projects, with no suite run.
+ *
+ * **It used to read `src/state/the_family.json` and refuse to run without it**, which made it
+ * the second of the two tests a fresh clone runs red. Every assertion in this file is relative
+ * to the state — the page must print what the state holds and nothing else — and relative to a
+ * state is a thing a test has to bring or a thing it can only hope for.
+ *
+ * **A real state from the real collector, and not a fixture JSON.** The four trees under
+ * `test/fixtures` are committed, so this is a genuine reading of a family that never moves, and
+ * the collector is the same one the page is built about. `--without-the-suites` is what makes
+ * it cheap: the state is the same shape with the counts blank, and the counts are not what
+ * this file is about.
+ */
+const THE_FAMILY_THAT_IS_COMMITTED = [
+	{ owner: "steamnoid", name: "a_python_project", language: "python", interpreter: "python3" },
+	{ owner: "steamnoid", name: "a_python_project_with_another_name_for_the_move_table", language: "python", interpreter: "python3" },
+	{ owner: "steamnoid", name: "a_rust_project", language: "rust" },
+	{ owner: "steamnoid", name: "a_rust_project_with_a_workspace", language: "rust" },
+];
+
+/** Collect the fixtures into a directory, and hand back the path and the way to take it away. */
+function collect_the_fixtures() {
+	const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-state-"));
+	const the_state_path = join(a_directory, "the_family.json");
+	const the_answer = spawnSync(
+		process.execPath,
+		[
+			join(at, "scripts", "ask_the_family.mjs"),
+			"--where",
+			join(here, "fixtures"),
+			"--out",
+			the_state_path,
+			"--without-the-suites",
+			"--family",
+			JSON.stringify(THE_FAMILY_THAT_IS_COMMITTED),
+		],
+		{ cwd: at, encoding: "utf8" },
+	);
+	if (the_answer.status !== 0) {
+		throw new Error(`the collector could not read the fixtures, and said:\n${the_answer.stderr}`);
+	}
+	return { the_state_path, afterwards: () => rmSync(a_directory, { recursive: true, force: true }) };
+}
+
+const what_was_collected = collect_the_fixtures();
+after(() => what_was_collected.afterwards());
+
+{
 	describe("a page built from a state that was read", () => {
-		const the_state = JSON.parse(readFileSync(where_the_state_lives, "utf8"));
+		const the_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
 		const the_verdict = what_the_family_declares(the_state);
 		let the_words = "";
 		let the_markup = "";
 		let where_the_page_landed = "";
 
 		before(() => {
-			where_the_page_landed = build_the_page(at, join(at, "dist"));
+			where_the_page_landed = build_the_page(at, join(at, "dist"), { write: the_state });
 			the_markup = readFileSync(where_the_page_landed, "utf8");
 			the_words = the_words_on_the_page(where_the_page_landed);
 		});
@@ -203,7 +244,7 @@ if (!existsSync(where_the_state_lives)) {
 		});
 
 		it("publishes the state beside the page, so every number can be checked", () => {
-			const the_published = join(at, "dist", "the_family.json");
+			const the_published = join(where_the_page_landed, "..", "the_family.json");
 			assert.ok(
 				existsSync(the_published),
 				"the build produced a page with no state beside it. The page's whole argument is that a " +
@@ -220,3 +261,42 @@ if (!existsSync(where_the_state_lives)) {
 		});
 	});
 }
+
+describe("the tests in this directory, and where they get a state from", () => {
+	// **A test that reads a file it did not write is a test that only runs on the machine that
+	// made it.** This file used to read `src/state/the_family.json` and fail when it was absent,
+	// which is a fresh clone — so the most important test in the repository could not run
+	// anywhere but the laptop that had run a collect. It now collects the fixtures instead.
+	//
+	// **The guard is here because the alternative is finding this again in a month**, when
+	// somebody adds a test, needs a state, and reaches for the file that is lying in the tree.
+	// A directory scan rather than a convention, because a convention is a thing a reader has
+	// to know and a scan is a thing that fails on its own.
+	const the_test_files = readdirSync(here).filter(
+		(a_name) => a_name.endsWith(".test.mjs") && a_name !== "the_page_says_only_what_the_state_says.test.mjs",
+	);
+
+	it("looks at the other tests, so that scanning for something finds something", () => {
+		assert.ok(
+			the_test_files.length > 3,
+			`only ${the_test_files.length} other test files were found to check. A guard that finds ` +
+				"nothing to check passes, and a guard that passes because it looked in the wrong place " +
+				"is worse than no guard at all.",
+		);
+	});
+
+	for (const a_file of the_test_files) {
+		it(`${a_file} brings its own state or asks for none`, () => {
+			const what_it_says = readFileSync(join(here, a_file), "utf8");
+			assert.doesNotMatch(
+				what_it_says,
+				/src[",']?[,\s]*["']?state[",']?[,\s]*["']?[\s,]*["']?the_family\.json/,
+				`${a_file} reaches into src/state/the_family.json, which is a build artifact that a fresh ` +
+					"clone does not have and that a collector happens to have left. A test that reads it " +
+					"runs on one machine and is silent everywhere else, and the way to see that is to read " +
+					"what is on the page and the state it was built from is to build one.",
+			);
+		});
+	}
+});
+
