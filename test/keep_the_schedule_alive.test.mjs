@@ -340,3 +340,16 @@ describe("an operator who says the silence is long enough", () => {
 		);
 	});
 });
+
+describe("a limit that is not a number", () => {
+	// **An operator typing into a dispatch is the only source of a limit that can be a word.** A
+	// comparison against `NaN` is false for every number, so a bad limit is a keepalive that does
+	// nothing and says nothing — the one outcome that looks identical to a working one.
+	it("refuses it by name, rather than comparing the silence against nothing", () => {
+		const what_happened = keep_the_schedule_alive({ at: a_checkout, the_limit: Number("forty five") });
+
+		assert.equal(what_happened.a_commit_was_pushed, false, "a limit of NaN pushed a commit");
+		assert.match(what_happened.why_not, /not a number of days/, "the refusal does not say what was wrong");
+	});
+});
+

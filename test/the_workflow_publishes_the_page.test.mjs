@@ -393,6 +393,9 @@ function the_job_named(the_name) {
 	return the_jobs[the_one[0]];
 }
 
+/** The one name both the workflow and this file have to agree on, so it is written once. */
+const THE_INPUT_NAME = "the_number_of_days_of_silence_that_counts_as_long_enough";
+
 describe("the keepalive, and the one thing that can make its branch reachable", () => {
 	// **The branch is forty-five days away and the schedule drops most of its hours**, so there
 	// is no honest way to find out whether it works before the day a repository needs it. Between
@@ -403,14 +406,20 @@ describe("the keepalive, and the one thing that can make its branch reachable", 
 	// in a minute what a schedule would not tell them for a month. It is an input and not a
 	// change of behaviour: the schedule still decides on its own, and a dispatch that does not ask
 	// still runs nothing.
-	it("offers a dispatch that reaches it, and names what that dispatch is pretending", () => {
+	it("offers the number of days a commit is owed, rather than a yes that means nothing", () => {
 		const the_inputs = the_workflow().on.workflow_dispatch?.inputs ?? {};
 		assert.ok(
-			"as_if_the_silence_were_long_enough" in the_inputs,
+			THE_INPUT_NAME in the_inputs,
 			`the workflow offers no way to run the keepalive on demand; its dispatch offers ${
 				JSON.stringify(Object.keys(the_inputs))
 			}. The branch is unreachable for forty-five days, and a rescue mechanism nobody can exercise ` +
 				"is one whose first exercise is the day a repository is going dark.",
+		);
+		assert.equal(
+			String(the_inputs[THE_INPUT_NAME].default),
+			"45",
+			"the input does not default to the number the schedule acts on, so a dispatch that fills in " +
+				"nothing would change the meaning of a job that runs on its own.",
 		);
 	});
 
@@ -418,7 +427,7 @@ describe("the keepalive, and the one thing that can make its branch reachable", 
 		const the_keepalive = the_workflow().jobs.keepalive;
 		assert.match(
 			the_keepalive.if ?? "",
-			/as_if_the_silence_were_long_enough/,
+			new RegExp(THE_INPUT_NAME),
 			"the dispatch input exists and the keepalive does not look at it, so pressing the button " +
 				"changes nothing and the input is a lie told to an operator.",
 		);
@@ -430,16 +439,26 @@ describe("the keepalive, and the one thing that can make its branch reachable", 
 		);
 	});
 
-	it("hands the script the limit the operator asked for, rather than the one it guesses at", () => {
+	it("hands the script what was typed, with nothing between the input and the limit", () => {
+		// **The first version of this passed while the branch did not.** It ran the keepalive on
+		// GitHub, the job went green, the log said "the limit is 45" and nothing was pushed — because
+		// `inputs.x && 0 || 45` yields 45, since zero is the falsy half of that idiom. The test
+		// checked that the input's *name* appeared in the environment and was satisfied.
+		//
+		// **So the environment is a name and nothing else.** A `&&` or an `||` between the input and
+		// the limit is the shape of a truthiness bug, and a truthiness bug in a value that is
+		// usually forty-five is invisible until someone asks for zero and the run does nothing.
 		const the_step = the_workflow().jobs.keepalive.steps.find(
 			(a_step) => (a_step.run ?? "").includes("keep_the_schedule_alive"),
 		);
 		assert.ok(the_step, "the keepalive no longer calls the script that holds the decision");
-		assert.match(
-			JSON.stringify(the_step.env ?? {}),
-			/as_if_the_silence_were_long_enough/,
-			"the input never reaches the script, so the script would count the days itself, find forty-five " +
-				"is not enough, and say so — which is a correct answer to a question nobody asked.",
+		const the_limit = String((the_step.env ?? {}).THE_LIMIT ?? "");
+		assert.equal(
+			the_limit,
+			`\${{ inputs.${THE_INPUT_NAME} }}`,
+			`the workflow builds the limit as "${the_limit}". Anything between the input and the number ` +
+				"the script acts on is a place a falsy value turns into the default — and the default is " +
+				"what the run did instead of what was asked for.",
 		);
 	});
 });

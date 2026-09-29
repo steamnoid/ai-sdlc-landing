@@ -30,18 +30,23 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
-      # **The keepalive's branch is forty-five days away, and this is how it is reached today.**
-      # A schedule is the only thing that would otherwise reach it, and the schedule has run twice
-      # in seventeen hours — so "wait and see" is not a plan for a rescue mechanism. This says out
-      # loud that the silence is long enough, and the script then acts on that word.
+      # **The number of days at which a commit is owed, which is the thing the keepalive acts on.**
+      # Its branch is forty-five days away, and a schedule is the only thing that would otherwise
+      # reach it — and the schedule has run twice in seventeen hours, so "wait and see" is not a plan
+      # for the mechanism that stops GitHub switching the schedule off after sixty quiet days.
+      # Typing 0 runs it now; typing 30 shows what the boundary looks like from the wrong side.
       #
-      # **It is a word, not a date.** Nothing here pretends to be a fact about the repository, and
-      # the log still prints the real age of the last commit, so a run done this way is visibly not
-      # a run the schedule would have done.
-      as_if_the_silence_were_long_enough:
-        description: "Run the keepalive as though this repository had been quiet for 45 days"
-        type: boolean
-        default: false
+      # **A number and not a yes.** A boolean had to be turned into a number by
+      # `inputs.x && 0 || 45`, and zero is the falsy half of that idiom, so it produced forty-five:
+      # the job ran, went green, and pushed nothing while the log said it had. An operator typing a
+      # number cannot be undone by a rule about what is truthy.
+      #
+      # **Nothing here pretends to be a fact about the repository.** The log still prints the real
+      # age of the last commit, so a forced run is visibly not a run the schedule would have done.
+      the_number_of_days_of_silence_that_counts_as_long_enough:
+        description: "Days of silence at which the keepalive pushes an empty commit"
+        type: string
+        default: "45"
 
 permissions:
   contents: read
@@ -227,7 +232,7 @@ jobs:
     needs: collect
     # **The schedule, or a person saying so.** The condition is one `||` because the two are
     # answers to the same question — is it time to push a commit — asked by two different things.
-    if: github.event_name == 'schedule' || inputs.as_if_the_silence_were_long_enough == true
+    if: github.event_name == 'schedule' || inputs.the_number_of_days_of_silence_that_counts_as_long_enough != '' 
     runs-on: ubuntu-latest
     # **`contents: write`, and it is the only job that asks.** The workflow grants `contents: read`
     # because nothing else may write this repository — and nothing else should: `Read the four
@@ -247,8 +252,8 @@ jobs:
           fetch-depth: 0
       - name: Push a commit if the silence is nearly long enough
         env:
-          # **Zero, and not a flag.** The script is asked for a number of days rather than told
-          # whether to believe itself, so the thing it prints and the thing it acts on are the same
-          # question. `&& 0 || 45` is the only way GitHub has to say one thing or the other.
-          THE_LIMIT: ${{ inputs.as_if_the_silence_were_long_enough && 0 || 45 }}
+          # **Straight from the input, with nothing in between.** See the note on the input: an
+          # expression between a typed number and the number the script acts on is where a falsy
+          # value turns into the default.
+          THE_LIMIT: ${{ inputs.the_number_of_days_of_silence_that_counts_as_long_enough }}
         run: node scripts/keep_the_schedule_alive.mjs

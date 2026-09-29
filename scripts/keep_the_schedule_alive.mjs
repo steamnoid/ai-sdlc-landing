@@ -54,6 +54,14 @@ export function the_silence_is_long_enough(how_many, the_limit = THE_LIMIT) {
  * it says which directory it could not read and pushes nothing.
  */
 export function keep_the_schedule_alive({ at = process.cwd(), the_limit = THE_LIMIT } = {}) {
+	// **A number or a refusal, and never a guess.** The limit arrives from a person typing into a
+	// dispatch, and a limit that is not a number has no answer: comparing the silence against it
+	// says `NaN >= anything` is false, which would be a keepalive that quietly does nothing after
+	// somebody typed the wrong thing into a field to make it do something.
+	if (Number.isNaN(the_limit)) {
+		return a_failure(`the schedule pushed nothing: ${the_limit} is not a number of days`);
+	}
+
 	const the_silence = how_many_days_since_the_last_commit(at);
 	if (!the_silence.was_counted) {
 		return a_failure(`the schedule pushed nothing: ${the_silence.why_not}`, the_silence.why_not);
