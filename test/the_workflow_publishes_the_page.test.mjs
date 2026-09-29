@@ -113,6 +113,66 @@ describe("the workflow that publishes the page", () => {
 		);
 	});
 
+	it("caches the two toolchains, because a run is mostly compiling", () => {
+		// **A run of this workflow is mostly waiting for Rust and for `uv`.** Measured: three and a
+		// half minutes, of which the largest part is `uv sync` on two projects and `cargo test` on two
+		// workspaces from cold. Neither of those is affected by anything this repository does, and both
+		// are exactly what a cache is for.
+		const the_steps_of_every_job = Object.values(the_workflow().jobs).flatMap((a_job) => a_job.steps ?? []);
+		const what_it_uses = the_steps_of_every_job.map((a_step) => a_step.uses ?? "").filter(Boolean);
+
+		assert.ok(
+			what_it_uses.some((a_use) => a_use.startsWith("astral-sh/setup-uv")),
+			"the workflow installs uv with a shell pipe and caches nothing. Two `uv sync --all-extras` " +
+				"runs of a langchain and langgraph dependency tree is most of what a run waits for, and it " +
+				"is the same tree every time.",
+		);
+		assert.ok(
+			what_it_uses.some((a_use) => a_use.startsWith("Swatinem/rust-cache")),
+			"the workflow compiles two Rust workspaces from cold on every run. Their `Cargo.lock` files " +
+				"are what a cache keys on, so two runs of an unmoved family compile the same dependencies " +
+				"twice and discard the result twice.",
+		);
+	});
+
+	it("keys no cache on a commit, which would make it miss every single run", () => {
+		// **A cache keyed on the commit is a cache that never hits, and it is worse than no cache**:
+		// it uploads a fresh copy of every build on every run, so the cost is paid twice — once to
+		// save nothing, and once in the storage quota. This is the single most common way a cache
+		// gets added and turns out to do nothing, and nothing about a green run reveals it.
+		const the_cache_keys = Object.values(the_workflow().jobs)
+			.flatMap((a_job) => a_job.steps ?? [])
+			.flatMap((a_step) => {
+				const from_the_step = a_step.with?.key ? [a_step.with.key] : [];
+				const from_the_environment = a_step.with?.["cache-dependency-path"]
+					? [a_step.with["cache-dependency-path"]]
+					: [];
+				return [...from_the_step, ...from_the_environment];
+			})
+			.flatMap((a_key) => String(a_key).split("\n"));
+
+		assert.ok(
+			!the_cache_keys.some((a_key) => /github\.sha|GITHUB_SHA|\$\{\{\s*github\./.test(a_key)),
+			`a cache is keyed on something that changes on every run: ${the_cache_keys.join(" | ")}. Every ` +
+				"run would miss, re-download what it had, and upload a copy of everything it built — so the " +
+				"cache would cost more than the run it was meant to shorten.",
+		);
+	});
+
+	it("keys the Rust cache on the lock files, which is what actually changes", () => {
+		const the_rust_cache = Object.values(the_workflow().jobs)
+			.flatMap((a_job) => a_job.steps ?? [])
+			.find((a_step) => a_step.uses?.startsWith("Swatinem/rust-cache"));
+
+		assert.match(
+			JSON.stringify(the_rust_cache.with ?? {}),
+			/Cargo\.lock|workspaces/,
+			"the Rust cache is not pointed at anything. A cache that keys on the runner's identity rather " +
+				"than on what was compiled misses whenever the projects move a commit and hits when they do " +
+				"not, which is backwards.",
+		);
+	});
+
 	it("reads the four projects, and a run that reads three is not a run that published a page", () => {
 		const the_read_workflow = the_workflow();
 		const the_collect = the_read_workflow.jobs.collect;
