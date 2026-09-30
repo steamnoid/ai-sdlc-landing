@@ -65,6 +65,51 @@ function what_a_domain_says(a_domain) {
 	};
 }
 
+/**
+ * A project that was read and declared nothing, marked as one that could not be used.
+ *
+ * **Both readers already refuse this, and the page now checks as well.** `ask_the_python_domain.py`
+ * and `read_the_rust_domain.mjs` each raise when the enumeration has no members — with the
+ * reasoning written out in both, which is the right place for it. But the invariant that makes
+ * this state impossible therefore lives in **two files and nowhere central**, and the verdict
+ * below depends on it: a project with `was_read: true` and no stages was compared against three
+ * real domains and came out as *"3 of them differ"*, which is a finding about the work rather
+ * than about a reading that could not be made.
+ *
+ * A guard that is not where the thing that needs it is a guard the next reader for a new language
+ * will not find. So this is checked where the comparison happens, and the reason is recorded —
+ * because silently dropping a project is the one thing this page says it never does.
+ *
+ * **A project with no moves is still a project.** What makes a domain empty for comparison is a
+ * missing stage set or a missing role set: an enum with no members, or a state machine with no
+ * moves at all, either of which draws an empty table.
+ */
+function with_a_reason_when_it_declared_nothing(a_projection) {
+	if (a_projection.was_read !== true) {
+		return a_projection;
+	}
+	const the_domain = a_projection.stages ?? null;
+	const why_it_declares_nothing = [
+		the_domain === null || the_domain.length === 0 ? "declared no stages at all" : null,
+		(a_projection.roles ?? []).length === 0 ? "declared no roles at all" : null,
+	]
+		.filter((a_reason) => a_reason !== null)
+		.join(" and ");
+
+	if (why_it_declares_nothing === "") {
+		return a_projection;
+	}
+
+	return {
+		...a_projection,
+		was_read: false,
+		why_not:
+			`${a_projection.name} was read, and it declared nothing this page could compare: ` +
+			`${why_it_declares_nothing}. An empty domain is a reading that cannot answer the question ` +
+			"rather than an answer of its own, so it is not compared and not reported as a difference.",
+	};
+}
+
 /** The projects that could not be read, and why. */
 function those_that_could_not_be_read(the_projects) {
 	return the_projects
@@ -128,7 +173,7 @@ export function what_the_family_declares(the_state) {
 		};
 	}
 
-	const the_domains = the_projects.map(what_one_project_declares);
+	const the_domains = the_projects.map(what_one_project_declares).map(with_a_reason_when_it_declared_nothing);
 	const those_unread = those_that_could_not_be_read(the_domains);
 	const the_read = the_domains.filter((a_project) => a_project.was_read);
 

@@ -209,6 +209,19 @@ another"* — which is worse, because it is in the section headed **the verdict 
 **A page about work in progress, on the day the work cannot be reached, said it had compared the
 work.**
 
+**And one of them was not a sentence at all, which was worse.** A project that was read and
+declared no stages at all — no stages, no roles — was compared against three real domains and
+came out as *"3 of them differ"*. That is a finding about the work reported from a reading that
+could not be made, and it is the kind of error that is indistinguishable from a discovery.
+
+Both readers already refuse it: `ask_the_python_domain.py` and `read_the_rust_domain.mjs` each
+raise on an enumeration with no members, with the reasoning written out in both. So the collector
+cannot produce that state today — **and that is the problem rather than the reassurance.** The
+invariant that makes it impossible lived in two files and nowhere central, and the verdict
+depended on it. A guard that is not where the thing that needs it is a guard the next reader for
+a new language will not find, so the comparison checks it as well, and records which project it
+could not use and why.
+
 **The section called "How this page avoids lying" was checked at the same reading and is clean.**
 It describes the page's method rather than any one reading, so it is true whether or not
 anything was read — and on a reading where nothing was, every sentence in it is demonstrated

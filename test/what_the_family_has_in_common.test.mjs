@@ -210,3 +210,110 @@ describe("no state at all", () => {
 		assert.equal(what_the_family_declares(undefined).verdict, "nothing to say");
 	});
 });
+
+describe("a project that was read and declared nothing", () => {
+	// **The page reported it as a project that disagrees.**
+	//
+	// Both readers refuse an empty stage set — `Stage is an enumeration with no members`, in Python
+	// and in Rust, with the reasoning written out in both. So the collector cannot produce this
+	// state today. But the invariant that makes it impossible lives in **two files and nowhere
+	// central**, and the verdict depends on it: `was_read: true` with no stages was compared
+	// against three real domains and came out as "3 of them differ", which is a finding about the
+	// work rather than about a reading.
+	//
+	// A guard that is not where the thing that needs it is a guard that a third language's reader
+	// will not find. **So the page checks it too, and says which project it could not use and why.**
+	const a_project_declaring_nothing = (over = {}) => ({
+		owner: "steamnoid",
+		name: "a-project-that-declared-nothing",
+		was_read: true,
+		why_not: null,
+		how_the_domain_was_read: "imported",
+		what_its_code_declares: { stages: [], roles: [], moves: [] },
+		...over,
+	});
+
+	const a_family_of = (the_projects) => {
+		const a_complete_one = {
+			owner: "steamnoid",
+			name: "a-complete-project",
+			was_read: true,
+			why_not: null,
+			how_the_domain_was_read: "imported",
+			what_its_code_declares: {
+				stages: [{ name: "IDLE", an_agent_must_be_holding_it: false }],
+				roles: [{ name: "PO" }],
+				moves: [{ from: "IDLE", to: ["READY"] }],
+			},
+		};
+		return {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: [...the_projects, a_complete_one, { ...a_complete_one, name: "a-third-project" }],
+		};
+	};
+
+	it("does not count it among the projects that could be compared", () => {
+		const the_verdict = what_the_family_declares(a_family_of([a_project_declaring_nothing()]));
+
+		assert.equal(
+			the_verdict.how_many_could_be_read,
+			2,
+			"a project that declared no stages is counted as one that could be read, so it is compared " +
+				"against two real domains and the page reports a disagreement that is a reading failure.",
+		);
+	});
+
+	it("does not say the family differs on the strength of a project that said nothing", () => {
+		const the_verdict = what_the_family_declares(a_family_of([a_project_declaring_nothing()]));
+
+		assert.doesNotMatch(
+			the_verdict.verdict,
+			/of them differ/,
+			`the verdict is "${the_verdict.verdict}". One of the three projects declared no stages at all, ` +
+				"and that is being reported as a difference between the projects rather than as a project " +
+				"that could not be used.",
+		);
+	});
+
+	it("names it, so a reader can see which project was left out and why", () => {
+		const the_verdict = what_the_family_declares(a_family_of([a_project_declaring_nothing()]));
+
+		const the_reason = the_verdict.the_projects.find(
+			(a_project) => a_project.name === "a-project-that-declared-nothing",
+		).why_not;
+
+		assert.match(
+			the_reason ?? "",
+			/declared (no|nothing|not)|no stages|empty/i,
+			"the project is silently dropped from the comparison with no reason recorded, which is the " +
+				"one thing this page says it never does.",
+		);
+	});
+
+	it("still agrees when every project declares something", () => {
+		const a_complete = {
+			owner: "steamnoid",
+			name: "a-project",
+			was_read: true,
+			why_not: null,
+			how_the_domain_was_read: "imported",
+			what_its_code_declares: {
+				stages: [{ name: "IDLE", an_agent_must_be_holding_it: false }],
+				roles: [{ name: "PO" }],
+				moves: [{ from: "IDLE", to: ["READY"] }],
+			},
+		};
+		const the_verdict = what_the_family_declares({
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: [a_complete, { ...a_complete, name: "another-project" }],
+		});
+
+		assert.equal(
+			the_verdict.verdict,
+			"they declare the same domain",
+			"a guard that also fires on a project which did declare its domain would make the page's " +
+				"central sentence unreachable.",
+		);
+	});
+});
+
