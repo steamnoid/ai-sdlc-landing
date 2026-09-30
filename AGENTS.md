@@ -251,21 +251,31 @@ seventeen hourly slots came due and **two ran**. It was written down as a small 
 instruction to measure it again rather than believe it, and the point of writing it that way was
 to make the re-measurement a thing the next reader could do.
 
-The second window, from the 29th at 12:58 to the 30th at 08:38, gives five runs:
+The second window gives eight consecutive scheduled runs and the gap between each of them:
 
-| gap between consecutive scheduled runs | |
+| | |
 |---|---|
+| 6h 28m | |
+| 7h 10m | |
 | 5h 41m | |
-| 4h 20m | |
-| 3h 10m | |
-| 6h 29m | |
+| 4h 19m | |
+| 3h 09m | |
+| 6h 28m | |
+| 7h 18m | |
 
-**None of them was dropped.** Every one arrived; all of them were late, by hours, and by amounts
-that do not look like a queue. So the honest reading is not "GitHub loses most of them" and not
-"the schedule is hourly" — it is that **the schedule runs roughly every four to five hours on
-this repository, and has never once run hourly in any window measured here.** The first
-measurement was not wrong, it was early: at eighteen hours old the schedule delivered two runs
-where five days later it delivers one every four to five.
+**Mean five hours forty-seven, and a range from three to seven.** **None of them was dropped.**
+Every one arrived; all of them were hours late, by amounts that do not look like a queue.
+
+**This file said "roughly every four to five hours" after five samples, and it was wrong by
+about an hour** — the same fault as the "two hours" it replaced, in the same place, measured the
+same careless way. Eight samples put the mean at 5h47m. It is written here as a range because a
+range is what was observed, and the next reader is expected to add to it rather than to round
+it.
+
+**What the honest reading is, and what it is not.** Not "GitHub loses most of them": nothing is
+lost. Not "the schedule is hourly": it has never been hourly in any window measured here. It
+runs **every five to seven hours**, and the page says on its own face when it last read the
+family, so a reader is never misled by how old it is.
 
 **One of the five failed, and it is worth saying which job.** `Keep the schedule alive` was red
 on the 08:38 run with *"the limit and the commit did not arrive"*, and it is the sixth run in a
@@ -297,7 +307,7 @@ Measured on consecutive runs, three minutes forty-seven cold and three minutes s
 all three caches restored — the uv tree at 77 MB, the two Rust workspaces at 192 MB, the
 node modules at 50 MB. What the cache saved was the compilation, and what the run mostly
 waits for is the four test suites actually executing. It is kept because thirty seconds every
-four to five hours is free, and it is written here because the estimate this repository started
+five to seven hours is free, and it is written here because the estimate this repository started
 with was a guess and the sentence above is not.
 
 ---
