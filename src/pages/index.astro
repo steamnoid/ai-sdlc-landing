@@ -93,6 +93,52 @@ const when_was_it_read = the_state.the_build?.read_at
 	? new Date(the_state.the_build.read_at).toISOString().slice(0, 16).replace("T", " ") + " UTC"
 	: null;
 const how_many_read = the_domain.the_projects.filter((a_project) => a_project.was_read).length;
+
+/**
+ * How each project that could be read had its domain read, counted.
+ *
+ * **These are the numbers this page used to type.** Its section said "One domain, four times
+ * over", "Two of the four are imported … two are read out of Rust source" and "The same three
+ * things, said four ways" — four hand-typed numbers in a page whose argument is that every
+ * number on it was read out of a repository. All four are true on the day all four projects can
+ * be read and false the day one of them answers 404, with the header saying "3 of 4" directly
+ * above them.
+ *
+ * **Counted over the projects that were read, and never over the ones that were not.** A project
+ * nobody opened has no way its domain was read, so including it in either count would be a claim
+ * about a repository this page has never seen.
+ */
+const how_many_were_read_this_way = (a_way) =>
+	the_domain.the_projects.filter(
+		(a_project) => a_project.was_read && a_project.how_the_domain_was_read === a_way,
+	).length;
+const how_many_were_imported = how_many_were_read_this_way("imported");
+const how_many_were_read_from_source = how_many_were_read_this_way("read from source");
+
+/**
+ * How many of the projects mark no phase at all.
+ *
+ * Also typed by hand once: "Two of the four projects mark nothing". On the day one of those two
+ * could not be read, the sentence was a claim about the marking of a repository this page never
+ * opened.
+ *
+ * **Out of the raw state and not out of the family's projection.** The projection carries what a
+ * project *declares* — its stages, its roles, its moves — because that is what a project is
+ * compared on. It carries no documents, so counting marks from it found nothing and printed "every
+ * project marks something" on a page where two of the four mark nothing. **A number read from the
+ * wrong object is not a number, and this one was wrong in the direction of a nicer sentence.**
+ *
+ * A project whose list was read but is empty is not counted: an empty list is a project with
+ * nothing to mark, and `every` on nothing is true.
+ */
+const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
+	if (a_project.was_read !== true) {
+		return false;
+	}
+	const the_phases = a_project.what_its_documents_say?.phases;
+	return the_phases?.verdict === "read" && the_phases.phases.length > 0 &&
+		the_phases.phases.every((a_phase) => a_phase.verdict === "not started");
+}).length;
 ---
 
 <html lang="en">
@@ -294,11 +340,15 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 					{the_stages.length > 0 && (
 						<section id="domain" class="scroll-mt-14">
 							<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
-								<h2 class="text-2xl font-semibold tracking-tight">One domain, four times over</h2>
+								<h2 class="text-2xl font-semibold tracking-tight">
+									One domain, {how_many_read} {how_many_read === 1 ? "time" : "times"} over
+								</h2>
 								<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
-									These stages and these moves are not typed here. Two of the four are imported from the code that
-									declares them; two are read out of Rust source, and every name is a string literal lifted from that
-									project's own match rather than a rule applied to its variants.
+									These stages and these moves are not typed here. {how_many_were_imported} of the {how_many_read}{" "}
+									{how_many_read === 1 ? "project is" : "projects are"} imported from the code that declares them and{" "}
+									{how_many_were_read_from_source} {how_many_were_read_from_source === 1 ? "is" : "are"} read out of Rust
+									source, and every name is a string literal lifted from that project's own match rather than a
+									rule applied to its variants.
 								</p>
 								<div class="mt-6 grid lg:grid-cols-3 gap-3">
 									<div class="rounded-2xl border border-zinc-200 bg-white p-5">
@@ -340,7 +390,7 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 
 								<div class="mt-3 rounded-2xl border border-zinc-200 bg-white p-5">
 									<p class="text-xs uppercase tracking-wider text-zinc-500 mb-3">
-										The same three things, said four ways
+										The same three things, said {how_many_read} {how_many_read === 1 ? "way" : "ways"}
 									</p>
 									<p class="text-[13px] text-zinc-600 mb-4 max-w-2xl">
 										The stage set, the table of legal moves and the invariant are one specification. How a project
@@ -406,8 +456,11 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 							<h2 class="text-2xl font-semibold tracking-tight">How they differ</h2>
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								A phase's state is read from the mark its own document puts on it — a strikethrough, the word done, or
-								nothing at all. Two of the four projects mark nothing, and a page that reported a missing mark as
-								"not done" would be making a claim about the work that the document declined to make.
+								nothing at all. {how_many_mark_nothing === 0
+									? "Every project that could be read marks something"
+									: `${how_many_mark_nothing} of the ${how_many_read} ${how_many_read === 1 ? "project marks" : "projects mark"} nothing`}, and a page
+								that reported a missing mark as "not done" would be making a claim about the work that the
+								document declined to make.
 							</p>
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								{/*

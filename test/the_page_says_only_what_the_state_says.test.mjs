@@ -703,3 +703,140 @@ describe("a project the collector could not read, in the table that compares fou
 	});
 });
 
+describe("the numbers in this page's own sentences, and who keeps them right", () => {
+	// **Four of them were typed by hand and none of them was in step with the state.**
+	//
+	// | the sentence | what it claimed |
+	// |---|---|
+	// | "One domain, four times over" | four projects were read |
+	// | "Two of the four are imported … two are read out of Rust source" | two and two |
+	// | "The same three things, said four ways" | four projects to compare |
+	// | "Two of the four projects mark nothing" | which two |
+	//
+	// All four are true today and all four are false the day a repository answers 404 — and the
+	// page says "Read from 3 of 4 repositories" in the header directly above them. A hand-typed
+	// number in a page whose argument is that every number is read is the one thing this page
+	// cannot hold itself to, and it is the shape this repository has now found five times.
+	const A_FAMILY_WITH_ONE_UNREADABLE = () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		return {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: [
+				...a_state.the_family.slice(0, 2),
+				a_state.the_family[2],
+				{ owner: "steamnoid", name: "a-project-nobody-could-read", was_read: false, why_not: "the repository answered 404" },
+			],
+		};
+	};
+
+	const build_the_state = (a_state) => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-counts-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		return the_words_on_the_page(build_the_page(at, a_directory, { write: a_state }));
+	};
+
+	it("does not say four times over when three repositories were read", () => {
+		const the_reading = build_the_state(A_FAMILY_WITH_ONE_UNREADABLE());
+
+		assert.doesNotMatch(
+			the_reading,
+			/One domain, four times over/,
+			"the section is headed four times over on a reading of three repositories, in a page whose " +
+				"header says 3 of 4. The heading is a hand-typed number and nothing keeps it in step.",
+		);
+	});
+
+	it("does not split two and two when the fourth repository was not read at all", () => {
+		const the_reading = build_the_state(A_FAMILY_WITH_ONE_UNREADABLE());
+
+		assert.doesNotMatch(
+			the_reading,
+			/Two of the four are imported/,
+			"the page says two projects were imported and two read from Rust source, describing a " +
+				"repository it could not read. It is the one sentence on this page about a project that " +
+				"was never looked at.",
+		);
+	});
+
+	it("does not say four ways when the table can compare three", () => {
+		const the_reading = build_the_state(A_FAMILY_WITH_ONE_UNREADABLE());
+
+		assert.doesNotMatch(
+			the_reading,
+			/said four ways/,
+			"the table is headed four ways and holds three readable rows plus one row that says it could " +
+				"not be read. Three and four in the same table is a contradiction a reader can count.",
+		);
+	});
+
+	it("says how many projects mark nothing, counted from the state rather than typed", () => {
+		// **The first version of this asserted only that the old sentence was gone**, and the old
+		// sentence was gone while the new one said "every project that could be read marks
+		// something" — on a page where two of the four mark nothing. The count was being read out
+		// of the family's projection, which carries what a project declares and carries no
+		// documents, so it found nothing and produced a nicer sentence. **This asserts the number.**
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		const how_many_mark_nothing = a_state.the_family.filter((a_project) => {
+			const the_phases = a_project.what_its_documents_say?.phases;
+			return the_phases?.verdict === "read" && the_phases.phases.length > 0 &&
+				the_phases.phases.every((a_phase) => a_phase.verdict === "not started");
+		}).length;
+
+		assert.ok(
+			how_many_mark_nothing > 0,
+			"the fixtures hold no project that marks nothing, so this test cannot tell a correct count " +
+				"from a page that counts zero. A test that cannot fail is a test that has not run.",
+		);
+
+		const the_reading = build_the_state(a_state);
+
+		// **A plain sentence and not a regular expression.** The first version used `\d` inside a
+		// template literal, where `\d` is not an escape at all — it is the letter `d` — so the
+		// pattern compiled to `1 of the d+ projects…` and matched nothing. That is twice in one test:
+		// a `match` that could not pass, and a `doesNotMatch` beside it that passed because its own
+		// pattern was broken.
+		const how_many_were_read = a_state.the_family.filter((a_project) => a_project.was_read === true).length;
+		const the_sentence =
+			`${how_many_mark_nothing} of the ${how_many_were_read} ` +
+			`${how_many_were_read === 1 ? "project marks" : "projects mark"} nothing`;
+		assert.ok(
+			the_reading.includes(the_sentence),
+			`the page does not say "${the_sentence}". It says: ${
+				the_reading.includes("Every project that could be read marks something")
+					? '"Every project that could be read marks something"'
+					: "something else"
+			}. The count is read out of the family's projection rather than the state, and the projection ` +
+				"carries no documents — so it found none and printed a nicer sentence.",
+		);
+	});
+
+	it("does not claim a project's marking when that project could not be read", () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		const one_that_marks_nothing = a_state.the_family.find(
+			(a_project) => a_project.what_its_documents_say?.phases?.verdict === "read" &&
+				a_project.what_its_documents_say.phases.phases.length > 0 &&
+				a_project.what_its_documents_say.phases.phases.every((a_phase) => a_phase.verdict === "not started"),
+		);
+		if (one_that_marks_nothing === undefined) {
+			return;
+		}
+		const how_many_still_read = a_state.the_family.length - 1;
+		const with_it_unreadable = {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: a_state.the_family.map((a_project) =>
+				a_project.name === one_that_marks_nothing.name
+					? { owner: "steamnoid", name: a_project.name, was_read: false, why_not: "the repository answered 404" }
+					: a_project,
+			),
+		};
+
+		const the_reading = build_the_state(with_it_unreadable);
+
+		assert.ok(
+			!the_reading.includes("projects mark nothing") && !the_reading.includes("project marks nothing"),
+			`the page says how many projects mark nothing, and ${one_that_marks_nothing.name} is one of them ` +
+				`while the same page says it could not be read. It has made a claim about the marking of a ` +
+				`repository it never opened, out of ${how_many_still_read} readable projects.`,
+		);
+	});
+});
