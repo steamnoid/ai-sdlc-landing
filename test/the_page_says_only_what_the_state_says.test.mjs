@@ -24,7 +24,7 @@
 
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -436,6 +436,109 @@ describe("the section that explains the reading, and whether it is still true", 
 			"the section that explains how a mark is read does not mention that a row can be half " +
 				"delivered. A reader looking at `exposure through MCP is not` under a struck-through row " +
 				"has been told only that a strikethrough means done.",
+		);
+	});
+});
+
+describe("what moved since the last read, which is the only thing a reader caused", () => {
+	// **The page had no way to say what got done.** It republished whenever any fact moved — and
+	// a fact moves on almost every run, because suite counts, licences and commit pins are read
+	// fresh — so the page looked busy while saying nothing about the work. This is the narrow
+	// question underneath that: which items of the family's own lists stopped being owed.
+	//
+	// **Both fixtures share a state written here, because the movement is between two states and
+	// not a property of either.** `build_the_page` takes the state it is given, so a test states
+	// both readings and asks what the page says about the difference.
+	const THE_MOVED = {
+		was_compared: true,
+		why_not: null,
+		compared_with: { read_at: "2026-09-29T12:00:00.000Z", where: "https://example.invalid/the_family.json" },
+		the_projects: [
+			{
+				name: "a_python_project",
+				was_in_the_previous_read: true,
+				became_done: ["exposure through MCP is not"],
+				became_owed: [],
+			},
+		],
+	};
+
+	const build_with = (the_moved) => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-moved-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		if (the_moved !== null) {
+			mkdirSync(join(at, "src", "state"), { recursive: true });
+			writeFileSync(join(at, "src", "state", "what_moved.json"), JSON.stringify(the_moved));
+		} else {
+			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+		}
+		try {
+			// **The same state the rest of this file builds from**, read again rather than borrowed:
+			// the block above owns it in its own scope, and reaching into another block's scope is
+			// how a test ends up asserting against a state nobody can say where it came from.
+			return the_words_on_the_page(
+				build_the_page(at, a_directory, {
+					write: JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8")),
+				}),
+			);
+		} finally {
+			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+		}
+	};
+
+	it("names what stopped being owed, and which project it was in", () => {
+		const the_reading = build_with(THE_MOVED);
+
+		assert.match(
+			the_reading,
+			/exposure through MCP is not/,
+			"the page does not print the item that was delivered since the last read, so the one event " +
+				"on it a person caused goes unrecorded",
+		);
+		assert.match(the_reading, /a_python_project/, "the page does not say which project it was in");
+	});
+
+	it("names work that stopped being owed again, rather than printing only the good news", () => {
+		const the_reading = build_with({
+			...THE_MOVED,
+			the_projects: [
+				{ name: "a_rust_project", was_in_the_previous_read: true, became_done: [], became_owed: ["the desktop application"] },
+			],
+		});
+
+		assert.match(
+			the_reading,
+			/the desktop application/,
+			"a strikethrough was taken back out of a document and the page printed nothing. A page that " +
+				"reports only progress is a place where bad news does not appear.",
+		);
+	});
+
+	it("says nothing about movement when nothing moved, rather than printing an empty heading", () => {
+		const the_reading = build_with({ ...THE_MOVED, the_projects: [] });
+
+		assert.doesNotMatch(
+			the_reading,
+			/[Ss]ince the last read/,
+			"the page printed a heading about what changed since the last read with nothing under it. A " +
+				"heading with nothing under it reads as a section that was considered and found empty.",
+		);
+	});
+
+	it("builds with no such file at all, because a developer who has never published has none", () => {
+		const the_reading = build_with(null);
+
+		assert.doesNotMatch(the_reading, /[Ss]ince the last read/, "a page built with no comparison printed a comparison");
+	});
+
+	it("says when the last read was, so 'since' is a time a reader can check", () => {
+		const the_reading = build_with(THE_MOVED);
+
+		assert.match(
+			the_reading,
+			/2026-09-29 12:00/,
+			"the page says what changed since the last read without saying when the last read was, so " +
+				"'since' is not a time anybody can check the claim against.",
 		);
 	});
 });

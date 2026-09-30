@@ -18,6 +18,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 
 import { what_differs_between } from "../scripts/compare_the_states.mjs";
+import { what_became_done_between } from "../scripts/what_differs_from_what_is_published.mjs";
 
 /** A state for four projects, as a real run writes one. */
 function a_state(what_changed_in_it = {}) {
@@ -160,3 +161,122 @@ describe("two states that are not the same family", () => {
 		);
 	});
 });
+
+describe("what became done since the last read, and what a page may say about it", () => {
+	// **A difference is not a movement.** `what_differs_between` answers "is this the same page",
+	// and it answers it about suites, licences, commit pins and the date a tree was read — most of
+	// which change constantly. A reader asking what got finished is asking a narrower question, and
+	// the narrow answer is the one worth printing: it is the only thing on this page that moves when
+	// somebody does the work.
+	//
+	// **Keyed on the words of the item, not on the phase number.** A project that inserts a row
+	// renumbers every row below it, and a comparison keyed on the number would then report nothing
+	// after the insertion — which is exactly where the new work would be. A phase's number is what
+	// the document calls a row; an item's words are what a reader recognises.
+
+	/** One project, with the items a backlog row is made of. */
+	const a_family = (the_items) => ({
+		the_family: [{ name: "a-project", what_its_documents_say: { phases: { verdict: "read", phases: [{ number: 1, the_items }] } } }],
+	});
+
+	it("names the item that was owed and is not any more", () => {
+		const the_movement = what_became_done_between(
+			a_family([{ the_slice: "the tools", is_done: true }, { the_slice: "exposure through MCP is not", is_done: true }]),
+			a_family([{ the_slice: "the tools", is_done: true }, { the_slice: "exposure through MCP is not", is_done: false }]),
+		);
+
+		assert.deepEqual(
+			the_movement[0].became_done,
+			["exposure through MCP is not"],
+			"an item that stopped being owed is not named, so the page has nothing to print for the only " +
+				"event on it that a person caused",
+		);
+		assert.deepEqual(the_movement[0].became_owed, [], "nothing became owed, so nothing is named as owed");
+	});
+
+	it("names work that became owed again, because a page that reports only the good news is a bias", () => {
+		// **This was written the other way round first**, with the delivered half as the *first*
+		// argument — and it failed for the right reason, which is that `what_became_done_between(now,
+		// before)` means what the argument names. A test written backwards about a two-argument
+		// function is a test that would have passed on a function that did the opposite.
+		const the_movement = what_became_done_between(
+			a_family([{ the_slice: "the tools", is_done: false }]),
+			a_family([{ the_slice: "the tools", is_done: true }]),
+		);
+
+		assert.deepEqual(
+			the_movement[0].became_owed,
+			["the tools"],
+			"a strikethrough was taken back out of a document and the page said nothing. Printing only " +
+				"progress is how a page becomes a place where bad news does not appear.",
+		);
+		assert.deepEqual(the_movement[0].became_done, []);
+	});
+
+	it("finds the item even when its row was renumbered by an insertion above it", () => {
+		const the_movement = what_became_done_between(
+			{ the_family: [{ name: "a-project", what_its_documents_say: { phases: { verdict: "read", phases: [{ number: 4, the_items: [{ the_slice: "the tools", is_done: true }] }] } } }] },
+			{ the_family: [{ name: "a-project", what_its_documents_say: { phases: { verdict: "read", phases: [{ number: 1, the_items: [{ the_slice: "the tools", is_done: false }] }] } } }] },
+		);
+
+		assert.deepEqual(
+			the_movement[0].became_done,
+			["the tools"],
+			"the item was delivered and nothing was named, because its phase number changed. Every " +
+				"project's backlog gets a row inserted above it at some point, and every movement below " +
+				"that row would go unreported for ever.",
+		);
+	});
+
+	it("says nothing moved when nothing did, rather than printing an empty list of achievements", () => {
+		const the_movement = what_became_done_between(
+			a_family([{ the_slice: "the tools", is_done: true }]),
+			a_family([{ the_slice: "the tools", is_done: true }]),
+		);
+
+		assert.deepEqual(the_movement[0], {
+			name: "a-project",
+			was_in_the_previous_read: true,
+			became_done: [],
+			became_owed: [],
+		});
+	});
+
+	it("names a project that was not in the previous read at all, rather than calling it unchanged", () => {
+		const the_movement = what_became_done_between(a_family([{ the_slice: "the tools", is_done: true }]), {
+			the_family: [],
+		});
+
+		assert.equal(
+			the_movement[0].was_in_the_previous_read,
+			false,
+			"a project with no previous reading is being reported as one that did not move. Everything in " +
+				"it is new, and a page that says so is right; a page that says it did not move is wrong by " +
+				"omission, which is the way this page lies.",
+		);
+	});
+
+	it("names nothing for a project whose previous reading found no list, rather than calling it a delivery", () => {
+		// **A backlog the reader could not find is not an empty backlog.** The previous read refused
+		// to read this project's table, so nothing is known about what was owed then — and a page
+		// that reported a whole table appearing as work delivered would be right by accident and
+		// wrong on every run after.
+		const the_movement = what_became_done_between(a_family([{ the_slice: "the tools", is_done: true }]), {
+			the_family: [
+				{
+					name: "a-project",
+					what_its_documents_say: { phases: { verdict: "there is no backlog table", phases: [], why_not: "no table" } },
+				},
+			],
+		});
+
+		assert.deepEqual(
+			the_movement[0],
+			{ name: "a-project", was_in_the_previous_read: false, became_done: [], became_owed: [] },
+			"a project whose previous reading found no list is reported as having had a delivery, or is " +
+				"reported as one that did not move. The first is a claim about work nobody can check and " +
+				"the second is a claim about work that was never read.",
+		);
+	});
+});
+

@@ -154,7 +154,7 @@ jobs:
 
       - name: Has anything changed on the page
         id: changed
-        run: node scripts/has_anything_changed.mjs --state src/state/the_family.json
+        run: node scripts/what_differs_from_what_is_published.mjs --state src/state/the_family.json
 
       # **The directory, not the file.** An artifact of one file has that file's directory
       # as its root, so the download lands beside the committed copy — and the first

@@ -16,9 +16,53 @@
  * **What is written by hand is only what the repositories cannot refute**: the pitch,
  * and who to write to. A number somebody typed is a number that goes stale quietly.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import the_state from "../state/the_family.json";
 import { what_the_family_declares } from "../page/what_the_family_declares.mjs";
 import { a_number_or, what_the_family_says, what_the_suite_says } from "../page/what_the_page_says.mjs";
+
+/**
+ * What moved since the page last read the family, or that it could not be told.
+ *
+ * **Read rather than imported, because it is not always there.** A developer who has run
+ * `npm run collect` but never published has no such file, and a static import would fail the
+ * build for the one build that has to work. So the absence is read as an absence and the page
+ * says nothing about movement rather than printing an empty heading.
+ *
+ * **A movement is a difference about a project's own list, not about the family.** Suites,
+ * licences and commit pins change on every run; an item stopping being owed is the only thing on
+ * this page that moves because somebody did the work.
+ */
+const what_moved = read_what_moved();
+
+function read_what_moved() {
+	// **A path from the working directory, and not `import.meta.url`.** This frontmatter is
+	// TypeScript run through Vite, and `import.meta.url` is whatever the module graph happened to
+	// make of it — which made this section appear on the first build after a change and vanish on
+	// the next, with no edit in between. `astro.config.mjs` and `test/build_the_page.mjs` both
+	// resolve against the working directory because it is the one thing all three agree on.
+	const where_it_lives = resolve("src/state/what_moved.json");
+	if (!existsSync(where_it_lives)) {
+		return { was_compared: false, why_not: "this page has not been compared with an earlier one", the_projects: [] };
+	}
+	return JSON.parse(readFileSync(where_it_lives, "utf8"));
+}
+
+/** The projects whose own list gained or lost something since the page was last published. */
+const what_became_done = what_moved.the_projects.filter(
+	(a_project) => a_project.became_done.length > 0 || a_project.became_owed.length > 0,
+);
+
+/**
+ * When the comparison was against, in the words the rest of this page uses for a time.
+ *
+ * "Since the last read" is not a time anybody can check a claim against, and the claim here is a
+ * claim about what somebody did — which is the kind of claim that has to carry its own evidence.
+ */
+const when_the_last_one_was = what_moved.compared_with?.read_at
+	? new Date(what_moved.compared_with.read_at).toISOString().slice(0, 16).replace("T", " ") + " UTC"
+	: null;
 
 const the_family = what_the_family_says(the_state);
 const the_domain = what_the_family_declares(the_state);
@@ -83,6 +127,15 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 					<a href="#family" class="hover:text-zinc-900 transition">The family</a>
 					<a href="#domain" class="hover:text-zinc-900 transition">One domain</a>
 					<a href="#differ" class="hover:text-zinc-900 transition">How they differ</a>
+					{/*
+					 * **Only when the section is there.** The section prints nothing when nothing
+					 * moved, which is most builds — and a navigation link to an anchor that does not
+					 * exist is a link that goes nowhere, on a page whose argument is that every
+					 * claim on it can be checked.
+					 */}
+					{what_became_done.length > 0 && (
+						<a href="#moved" class="hover:text-zinc-900 transition">Since the last read</a>
+					)}
 					<a href="#truth" class="hover:text-zinc-900 transition">How this page works</a>
 				</nav>
 				<a
@@ -498,6 +551,61 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 									);
 								})}
 							</div>
+						</div>
+					</section>
+
+					{/*
+					 * What moved since the last read, and the one section of this page that is about a
+					 * person rather than about a repository.
+					 *
+					 * The page republishes whenever any fact moves, and a fact moves on nearly every run —
+					 * suite counts, licences, commit pins — so it looked busy while saying nothing about
+					 * the work. This is the narrow question underneath that: which items of the family's
+					 * own lists stopped being owed, and which became owed again.
+					 *
+					 * **The direction that is not good news is printed too.** A strikethrough taken back
+					 * out of a document is a thing that happened, and a section that lists only
+					 * deliveries is a section where bad news does not appear.
+					 */}
+					<section id="moved" class="bg-white border-y border-zinc-200 scroll-mt-14">
+						<div class="max-w-6xl mx-auto px-6 py-12 md:py-16">
+							{what_became_done.length === 0 ? null : (
+								<>
+									<h2 class="text-2xl font-semibold tracking-tight">Since the last read</h2>
+									<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
+										Compared with the reading of {when_the_last_one_was}
+										{what_moved.compared_with?.where ? (
+											<>
+												{" "}that page itself published, so every line here can be checked against the
+												state that line came from.
+											</>
+										) : (
+											"."
+										)}
+									</p>
+									<ul class="mt-6 space-y-3">
+										{what_became_done.map((a_project) => (
+											<li key={a_project.name}>
+												<p class="font-mono text-sm font-medium">{a_project.name}</p>
+												<ul class="mt-2 space-y-1">
+													{a_project.became_done.map((an_item) => (
+														<li class="text-[13px] text-zinc-700 flex gap-2 items-start">
+															<span class="text-emerald-700 shrink-0">done</span>
+															<span>{an_item}</span>
+														</li>
+													))}
+													{a_project.became_owed.map((an_item) => (
+														<li class="text-[13px] text-zinc-700 flex gap-2 items-start">
+															<span class="text-amber-700 shrink-0">owed again</span>
+															<span>{an_item}</span>
+														</li>
+													))}
+												</ul>
+											</li>
+										))}
+									</ul>
+								</>
+							)}
 						</div>
 					</section>
 
