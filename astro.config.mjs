@@ -1,10 +1,11 @@
 // @ts-check
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
 const where_the_state_lives = 'src/state/the_family.json';
+const where_the_state_directory_lives = 'src/state';
 const what_stands_in_for_a_missing_one = '{\n\t"the_family": []\n}\n';
 
 /**
@@ -52,14 +53,30 @@ const the_state_the_page_is_built_from = {
 			}
 		},
 		'astro:build:done': async ({ dir, logger }) => {
+			/**
+			 * Every file that was read, copied beside the page under its own name.
+			 *
+			 * **Everything, and not a list of things.** This copied one file by name for as long as
+			 * there was one file. A second arrived — what moved since the last read — and nothing
+			 * failed; the page printed claims from it while the footer went on promising that every
+			 * number is published beside it, which held for every number and not for the one a
+			 * person caused. A list is a thing that is right until the next file.
+			 */
+			const where_the_output_goes = dir.pathname ?? dir;
+			const what_was_read = readdirSync(where_the_state_directory_lives).filter((a_name) =>
+				a_name.endsWith(".json"),
+			);
+			for (const a_name of what_was_read) {
+				copyFileSync(join(where_the_state_directory_lives, a_name), join(where_the_output_goes, a_name));
+			}
+
 			const the_state = readFileSync(where_the_state_lives, "utf8");
-			copyFileSync(where_the_state_lives, join(dir.pathname ?? dir, "the_family.json"));
 			if (the_state === what_stands_in_for_a_missing_one) {
 				rmSync(where_the_state_lives, { force: true });
 				logger.warn("no state was read, so the published one is a stand-in saying so");
 				return;
 			}
-			logger.info("published the_family.json");
+			logger.info(`published ${what_was_read.join(", ")}`);
 		},
 	},
 };

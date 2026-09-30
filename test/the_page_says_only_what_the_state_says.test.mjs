@@ -83,8 +83,30 @@ function collect_the_fixtures() {
 
 const what_was_collected = collect_the_fixtures();
 
-/** The markup of the one page this file builds, for assertions that are about tags rather than words. */
-let the_markup_of_the_page_built_from_the_fixtures = "";
+/**
+ * Two readings of one project, and what the page is expected to say about the difference.
+ *
+ * **At module scope, because two blocks in this file ask about it.** It began inside the block
+ * that asked whether the section renders, and the block that asked whether the file is published
+ * beside the page could not see it — which is the same mistake as reaching for another block's
+ * `the_state`, and the same fix.
+ */
+const THE_MOVED = {
+	was_compared: true,
+	why_not: null,
+	compared_with: { read_at: "2026-09-29T12:00:00.000Z", where: "https://example.invalid/the_family.json" },
+	the_projects: [
+		{
+			name: "a_python_project",
+			was_in_the_previous_read: true,
+			became_done: ["exposure through MCP is not"],
+			became_owed: [],
+		},
+	],
+};
+
+
+let the_markup_of_the_page_built_from_the_fixtures_var = "";
 after(() => what_was_collected.afterwards());
 
 {
@@ -98,7 +120,7 @@ after(() => what_was_collected.afterwards());
 		before(() => {
 			where_the_page_landed = build_the_page(at, join(at, "dist"), { write: the_state });
 			the_markup = readFileSync(where_the_page_landed, "utf8");
-			the_markup_of_the_page_built_from_the_fixtures = the_markup;
+			the_markup_of_the_page_built_from_the_fixtures_var = the_markup;
 			the_words = the_words_on_the_page(where_the_page_landed);
 		});
 
@@ -319,7 +341,7 @@ describe("the tests in this directory, and where they get a state from", () => {
 });
 
 /** The page this file already built, read as markup for the assertions that are about tags. */
-const the_markup_of = () => the_markup_of_the_page_built_from_the_fixtures;
+const the_markup_of = () => the_markup_of_the_page_built_from_the_fixtures_var;
 
 /**
  * The words of a piece of markup this page is made of.
@@ -449,20 +471,6 @@ describe("what moved since the last read, which is the only thing a reader cause
 	// **Both fixtures share a state written here, because the movement is between two states and
 	// not a property of either.** `build_the_page` takes the state it is given, so a test states
 	// both readings and asks what the page says about the difference.
-	const THE_MOVED = {
-		was_compared: true,
-		why_not: null,
-		compared_with: { read_at: "2026-09-29T12:00:00.000Z", where: "https://example.invalid/the_family.json" },
-		the_projects: [
-			{
-				name: "a_python_project",
-				was_in_the_previous_read: true,
-				became_done: ["exposure through MCP is not"],
-				became_owed: [],
-			},
-		],
-	};
-
 	const build_with = (the_moved) => {
 		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-moved-"));
 		after(() => rmSync(a_directory, { recursive: true, force: true }));
@@ -540,6 +548,48 @@ describe("what moved since the last read, which is the only thing a reader cause
 			"the page says what changed since the last read without saying when the last read was, so " +
 				"'since' is not a time anybody can check the claim against.",
 		);
+	});
+});
+
+describe("what the page publishes beside itself, and whether it is everything it was built from", () => {
+	// **The page promised this and then stopped keeping it.** Its own footer says "the state every
+	// number came from is published beside it", and the build copied exactly one file. The section
+	// that says what moved since the last read prints claims from a second file, and that file was
+	// never copied — so the promise held for every number and failed for the one a person caused.
+	//
+	// **Every file the build was given, and not a list of them.** A list is what went stale: it held
+	// one name, a second file arrived, and nothing failed.
+	it("publishes the file that says what moved, so the claim can be checked against it", () => {
+		mkdirSync(join(at, "src", "state"), { recursive: true });
+		writeFileSync(join(at, "src", "state", "what_moved.json"), JSON.stringify(THE_MOVED));
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-publishes-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+
+		try {
+			build_the_page(at, a_directory, {
+				write: JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8")),
+			});
+
+			assert.ok(
+				existsSync(join(a_directory, "what_moved.json")),
+				"the build produced no what_moved.json beside the page. The page prints what moved since " +
+					"the last read, and its footer promises that every number it prints is published " +
+					"beside it — so this is a claim a reader cannot check against anything.",
+			);
+		} finally {
+			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+		}
+	});
+
+	it("publishes the state itself too, because that promise is older than the file above", () => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-publishes-2-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+
+		build_the_page(at, a_directory, {
+			write: JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8")),
+		});
+
+		assert.ok(existsSync(join(a_directory, "the_family.json")), "the published state is not there");
 	});
 });
 
