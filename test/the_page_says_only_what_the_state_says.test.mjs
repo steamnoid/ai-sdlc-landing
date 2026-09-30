@@ -840,3 +840,79 @@ describe("the numbers in this page's own sentences, and who keeps them right", (
 		);
 	});
 });
+
+describe("the sentence above the lineage, and whether it is about this family", () => {
+	// **It was wrong on the live site, in two ways, on the day it was written.**
+	//
+	// It said *"Three of these four write about a sibling project without saying which one."* The
+	// state says **one** of the four has any lineage at all, and that one **names** its source three
+	// times — a pin at `98fab0f`, a design reference, and a line in its own licence. So both the
+	// count and the clause after it were about no project on this page.
+	//
+	// It is a hand-typed sentence about a family that moves several times a day, and the number in
+	// it was never going to hold. The fifth one.
+	const build_with_lineage = (the_edges_for) => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		const with_lineage = {
+			...a_state,
+			the_family: a_state.the_family.map((a_project) => ({
+				...a_project,
+				the_lineage: { verdict: "read", the_edges: the_edges_for(a_project.name), why_not: null },
+			})),
+		};
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-lineage-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		return the_words_on_the_page(build_the_page(at, a_directory, { write: with_lineage }));
+	};
+
+	const NO_EDGES = () => [];
+
+	it("does not say three of the four when one of them has a lineage", () => {
+		const the_reading = build_with_lineage((a_name) =>
+			a_name === "a_python_project"
+				? [{ points_at: "a_sibling", owner: null, how_it_is_recorded: "a pin in SOURCES.lock" }]
+				: NO_EDGES(),
+		);
+
+		assert.doesNotMatch(
+			the_reading,
+			/Three of these four/,
+			"the sentence above the lineage says three of the four project have one. One does. This is " +
+				"the fifth hand-typed number in this page's own prose and the only one that was already " +
+				"wrong when it was written.",
+		);
+	});
+
+	it("says how many of the four name another project, counted from the state", () => {
+		const the_reading = build_with_lineage((a_name) =>
+			a_name === "a_python_project"
+				? [{ points_at: "a_sibling", owner: null, how_it_is_recorded: "a pin in SOURCES.lock" }]
+				: NO_EDGES(),
+		);
+
+		assert.ok(
+			the_reading.includes("1 of these four names another project, and this page prints which one the file records"),
+			"the page does not say that one of the four names another project and says which. The first " +
+				"version of this test matched a pattern loose enough to be satisfied by an unrelated " +
+				"sentence elsewhere on the page — a reader is left to count four cards to find out what " +
+				"one sentence could have said.",
+		);
+	});
+
+	it("does not say they do not say which one when the state names the source", () => {
+		const the_reading = build_with_lineage((a_name) =>
+			a_name === "a_python_project"
+				? [{ points_at: "a_sibling", owner: null, how_it_is_recorded: "a pin in SOURCES.lock" }]
+				: NO_EDGES(),
+		);
+
+		assert.doesNotMatch(
+			the_reading,
+			/without saying which one/,
+			"the page says these projects write about a sibling without saying which, while the project it " +
+				"is about names the sibling three times over. A sentence about the family must not contradict " +
+				"the rows directly beneath it.",
+		);
+	});
+});
+

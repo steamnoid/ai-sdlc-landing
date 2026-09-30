@@ -131,6 +131,19 @@ const how_many_were_read_from_source = how_many_were_read_this_way("read from so
  * A project whose list was read but is empty is not counted: an empty list is a project with
  * nothing to mark, and `every` on nothing is true.
  */
+/**
+ * How many of the four name another project, and where.
+ *
+ * **Also typed by hand once, and wrong on the live site the day it was written.** The sentence
+ * above the lineage said *"Three of these four write about a sibling project without saying which
+ * one"* while the state said one of the four had any lineage at all, and that one **named** its
+ * source three times over — a pin at `98fab0f`, a design reference, and a line in its own licence.
+ * Both the count and the clause after it were about no project on this page.
+ */
+const how_many_name_another = the_family.the_projects.filter(
+	(a_project) => (a_project.the_lineage?.the_edges ?? []).length > 0,
+).length;
+
 const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 	if (a_project.was_read !== true) {
 		return false;
@@ -577,8 +590,10 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 							<h2 class="text-2xl font-semibold tracking-tight">Where each one came from</h2>
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								Read from the two files that can record a lineage — a project's own lock file and its licence —
-								and from nowhere else. Three of these four write about a sibling project without saying which
-								one, and the page says that rather than drawing a line it cannot check.
+								and from nowhere else. {how_many_name_another === 0
+									? "None of these four names another project"
+									: `${how_many_name_another} of these four ${how_many_name_another === 1 ? "names" : "name"} another project`},
+								{" "}and this page prints which one the file records rather than drawing a line it cannot check.
 							</p>
 							<div class="mt-6 space-y-3">
 								{the_family.the_projects.map((a_project) => {
