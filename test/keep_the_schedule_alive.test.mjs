@@ -353,3 +353,75 @@ describe("a limit that is not a number", () => {
 	});
 });
 
+describe("the limit, and the three things a person can do to it", () => {
+	// **The regression this exists for, measured on the repository rather than reasoned about.**
+	// The workflow reads the limit from a dispatch input, and an input's `default` belongs to
+	// `workflow_dispatch` alone — on a `schedule` event there is no input at all and the expression
+	// yields an empty string. `Number("")` is zero, so the limit became zero and the keepalive
+	// pushed a commit on **every scheduled run** rather than once in forty-five days:
+	//
+	//     13:00  18:42  23:01  02:11  08:41   the schedule kept itself alive
+	//
+	// Five commits in twenty hours, from the mechanism whose whole reason for existing is to push
+	// one a month. And the sixth one was rejected as a non-fast-forward, which is the race that
+	// five commits in twenty hours causes and which took the run red.
+	it("means forty-five days when nobody said otherwise, because that is the number that is written down", () => {
+		const the_answer = the_limit_the_script_acts_on("");
+
+		assert.equal(
+			the_answer,
+			45,
+			"an empty limit became zero, and a limit of zero means every run pushes a commit. `Number('')` " +
+				"is zero, and a scheduled run has no input at all — so the branch that only runs once a " +
+				"month ran on every run instead.",
+		);
+	});
+
+	it("means forty-five days when there is nothing in the environment at all", () => {
+		assert.equal(the_limit_the_script_acts_on(undefined), 45, "an absent limit did not fall back to the number written down");
+	});
+
+	it("takes zero when a person typed zero, which is the one way to make it run now", () => {
+		assert.equal(
+			the_limit_the_script_acts_on("0"),
+			0,
+			"a person typing 0 did not get 0. That is the whole of the input: there would be no way to " +
+				"reach the branch before the day it is needed.",
+		);
+	});
+
+	it("takes thirty when a person typed thirty, so the boundary can be seen from the wrong side", () => {
+		assert.equal(the_limit_the_script_acts_on("30"), 30);
+	});
+});
+
+/**
+ * The limit the script acted on when the environment says this, which is how the workflow says it.
+ *
+ * **A checkout with a remote behind it, and three days of silence.** A limit of zero makes the
+ * script commit and push; with no remote the push fails and the log names the push rather than the
+ * limit, so the assertion would be reading a different sentence than the one it means.
+ */
+function the_limit_the_script_acts_on(what_the_environment_says) {
+	the_repository_goes_silent(3);
+	const the_answer = spawnSync(process.execPath, [join(here, "..", "scripts", "keep_the_schedule_alive.mjs")], {
+		cwd: a_checkout,
+		encoding: "utf8",
+		env: {
+			...process.env,
+			// **Parentheses, because they are a bug that was here first.** `...x === y ? a : b` spreads
+			// `x` and compares the result, so a string was spread into the environment as the keys "0"
+			// and "1" and the limit never arrived — which reads as the script ignoring the variable
+			// rather than as a test that mistyped its own spread.
+			...(what_the_environment_says === undefined ? {} : { THE_LIMIT: what_the_environment_says }),
+		},
+	});
+	return the_number_the_log_says(`${the_answer.stdout}${the_answer.stderr}`);
+}
+
+/** The number the script printed as its limit, because that is what it acted on. */
+function the_number_the_log_says(what_it_said) {
+	const found = /the limit is (\d+)/.exec(what_it_said);
+	return found === null ? Number.NaN : Number(found[1]);
+}
+

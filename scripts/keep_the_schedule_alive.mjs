@@ -54,13 +54,10 @@ export function the_silence_is_long_enough(how_many, the_limit = THE_LIMIT) {
  * it says which directory it could not read and pushes nothing.
  */
 export function keep_the_schedule_alive({ at = process.cwd(), the_limit = THE_LIMIT } = {}) {
-	// **A number or a refusal, and never a guess.** The limit arrives from a person typing into a
-	// dispatch, and a limit that is not a number has no answer: comparing the silence against it
-	// says `NaN >= anything` is false, which would be a keepalive that quietly does nothing after
-	// somebody typed the wrong thing into a field to make it do something.
 	if (Number.isNaN(the_limit)) {
 		return a_failure(`the schedule pushed nothing: ${the_limit} is not a number of days`);
 	}
+
 
 	const the_silence = how_many_days_since_the_last_commit(at);
 	if (!the_silence.was_counted) {
@@ -114,6 +111,32 @@ function a_silence_that_is_not_long_enough_yet(how_many, the_limit) {
 	};
 }
 
+/**
+ * The limit to act on, from whatever the workflow had to say about it — and this is where the
+ * regression in this file's history lived.
+ *
+ * **A dispatch input has a default only on a dispatch.** `inputs.x` on a `schedule` event is not
+ * the input's default, it is nothing at all, and the workflow's expression yields an empty
+ * string. `Number("")` is **zero**, so the limit became zero and this script pushed a commit on
+ * every scheduled run instead of once in forty-five days — five commits in twenty hours, and a
+ * sixth rejected as a non-fast-forward, which is the race that rate causes.
+ *
+ * | what the workflow said | the limit is |
+ * |---|---|
+ * | nothing, or nothing at all | 45 — the number written down at the top of this file |
+ * | a number, including `0` | that number, which is how an operator reaches the branch |
+ * | a word | not a number, which `keep_the_schedule_alive` refuses by name |
+ *
+ * **An absent value is not a zero, and that is the whole difference.** `0` is an operator asking;
+ * empty is nobody asking; treating the two alike is how a rescue mechanism becomes a metronome.
+ */
+export function the_limit_to_act_on(what_was_asked_for) {
+	if (what_was_asked_for === undefined || String(what_was_asked_for).trim() === "") {
+		return THE_LIMIT;
+	}
+	return Number(what_was_asked_for);
+}
+
 /** Something the schedule had to do and could not, said twice: for the log, and for the caller. */
 function a_failure(what_it_said, why_not = what_it_said) {
 	return { a_commit_was_pushed: false, what_it_said, why_not };
@@ -149,7 +172,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 	// not a claim about the repository and says so in the log beside the real number of days.
 	const what_happened = keep_the_schedule_alive({
 		...(process.argv[2] === undefined ? {} : { at: process.argv[2] }),
-		...(process.env.THE_LIMIT === undefined ? {} : { the_limit: Number(process.env.THE_LIMIT) }),
+		the_limit: the_limit_to_act_on(process.env.THE_LIMIT),
 	});
 	process.stdout.write(`${what_happened.what_it_said}\n`);
 	if (what_happened.why_not !== null) {
