@@ -38,10 +38,7 @@ export function what_the_family_says(the_state) {
 		return {
 			verdict: "nothing to say",
 			the_projects: [],
-			why_not:
-				"no state at src/state/the_family.json, so no project was read. The state is a " +
-				"build artifact and is never committed, so this is what a fresh clone has. Run " +
-				"`npm run collect` to read the four projects and build the page from them.",
+			why_not: why_there_is_nothing_to_say(the_state),
 		};
 	}
 
@@ -50,6 +47,37 @@ export function what_the_family_says(the_state) {
 		the_projects: the_projects.map(what_one_project_says),
 		why_not: null,
 	};
+}
+
+/**
+ * Why there is nothing here, and which of two quite different things it is.
+ *
+ * **A state that read no projects is not a missing state, and the page said it was.**
+ * `scripts/ask_the_family.mjs --family '[]'` writes a state holding zero projects with a valid
+ * `read_at` and reports success. The page printed "No state, so nothing to say", then "no state
+ * at src/state/the_family.json", then "this is what a fresh clone has", then "run `npm run
+ * collect`" — four untrue things about a file it was holding, three of them claims about the
+ * file and the last instructions that cannot help.
+ *
+ * **The difference is checkable in one line**, because a reading that happened carries its own
+ * timestamp. So this asks whether `read_at` is there rather than guessing, and says which of the
+ * two it is. A fresh clone has no file at all, renders differently, and is told to collect.
+ */
+function why_there_is_nothing_to_say(the_state_it_was_given) {
+	const the_reading = the_state_it_was_given?.the_build?.read_at ?? null;
+	if (the_reading === null) {
+		return (
+			"no state at src/state/the_family.json, so no project was read. The state is a build " +
+			"artifact and is never committed, so this is what a fresh clone has. Run " +
+			"`npm run collect` to read the four projects and build the page from them."
+		);
+	}
+	return (
+		`a state was read at ${the_reading} and it held no projects at all — not one that could not ` +
+		"be read, and none that could. A reading that asks about nothing and answers about nothing is a " +
+		"reading that was asked the wrong question, and collecting the same projects again will answer " +
+		"the same way."
+	);
 }
 
 /** One project, and what is known about it beyond its name. */

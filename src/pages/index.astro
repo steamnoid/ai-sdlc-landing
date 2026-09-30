@@ -739,7 +739,18 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 				</main>
 			) : (
 				<main class="max-w-3xl mx-auto px-6 py-16">
-					<h1 class="text-3xl font-semibold tracking-tight">No state, so nothing to say</h1>
+					{/*
+					 * **The heading is what there was, and there are two somethings.**
+					 *
+					 * "No state, so nothing to say" was right for a fresh clone and wrong for a state
+					 * that was read and held no projects — which is a thing `ask_the_family.mjs
+					 * --family '[]'` writes, with a valid `read_at` and a success message. The
+					 * paragraph below says which of the two this is; the heading used to contradict it
+					 * on the wrong one.
+					 */}
+					<h1 class="text-3xl font-semibold tracking-tight">
+						{the_state.the_build?.read_at ? "A reading that read nothing" : "No state, so nothing to say"}
+					</h1>
 					<p class="mt-4 text-zinc-600 text-[15px] leading-7">{the_family.why_not}</p>
 				</main>
 			)

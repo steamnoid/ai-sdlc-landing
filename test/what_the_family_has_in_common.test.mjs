@@ -17,6 +17,7 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 
 import { what_the_family_declares } from "../src/page/what_the_family_declares.mjs";
+import { what_the_family_says } from "../src/page/what_the_page_says.mjs";
 
 /** The family's own six stages, five roles and seven moves. */
 const THE_STAGES = [
@@ -313,6 +314,75 @@ describe("a project that was read and declared nothing", () => {
 			"they declare the same domain",
 			"a guard that also fires on a project which did declare its domain would make the page's " +
 				"central sentence unreachable.",
+		);
+	});
+});
+
+describe("a state that was written and read no projects at all", () => {
+	// **The page said the state was not there.**
+	//
+	// `scripts/ask_the_family.mjs --family '[]'` writes a state holding zero projects, a valid
+	// `the_build.read_at`, and reports success: *"read 0 projects, 0 of them, wrote
+	// …the_family.json"*. The page then printed, and published, four untrue things:
+	//
+	// 1. the heading **"No state, so nothing to say"**
+	// 2. *"no state at src/state/the_family.json"* — the file is there
+	// 3. *"this is what a fresh clone has"* — a fresh clone renders differently, from no file at all
+	// 4. *"Run `npm run collect` to read the four projects"* — collecting again writes the same
+	//    empty family
+	//
+	// The first three are claims about a file this page has in front of it. The fourth is
+	// instructions that do not help.
+	const a_state_that_read_nothing = {
+		the_build: { read_at: "2026-09-30T17:26:39.981Z" },
+		the_family: [],
+	};
+
+	it("does not say there is no state, because there is one", () => {
+		const the_saying = what_the_family_says(a_state_that_read_nothing);
+
+		assert.doesNotMatch(
+			the_saying.why_not ?? "",
+			/no state at src\/state\/the_family\.json/,
+			"the page says there is no state file while holding one it has just read a timestamp from. " +
+				"Every sentence after this one is about a file that is present.",
+		);
+	});
+
+	it("does not say this is what a fresh clone has, because a fresh clone renders differently", () => {
+		const the_saying = what_the_family_says(a_state_that_read_nothing);
+
+		assert.doesNotMatch(
+			the_saying.why_not ?? "",
+			/this is what a fresh clone has/,
+			"the page claims to be the fresh-clone page while describing a state file that exists. Those " +
+				"are two different renders and telling a reader they are looking at the first is a claim " +
+				"about the second.",
+		);
+	});
+
+	it("says the reading read nothing, which is a fact and is checkable", () => {
+		const the_saying = what_the_family_says({
+			the_build: { read_at: "2026-09-30T17:26:39.981Z" },
+			the_family: [],
+		});
+
+		assert.match(
+			the_saying.why_not ?? "",
+			/read (no|nothing)|no projects|asked about nothing/i,
+			"the page gives no sentence about a reading that read nothing. It has a timestamp for the " +
+				"reading and could say when.",
+		);
+	});
+
+	it("still says the file is missing when it is missing, because that sentence was true", () => {
+		const the_saying = what_the_family_says({});
+
+		assert.match(
+			the_saying.why_not ?? "",
+			/no state|nothing to read|fresh clone/i,
+			"the page stopped saying so when there is genuinely no state file, and a fresh clone builds. " +
+				"A fix that only makes the page quieter is a fix that has thrown away something correct.",
 		);
 	});
 });
