@@ -336,6 +336,19 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 								nothing at all. Two of the four projects mark nothing, and a page that reported a missing mark as
 								"not done" would be making a claim about the work that the document declined to make.
 							</p>
+							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
+								{/*
+								 * One cell can hold both, and this sentence is here because the page got it wrong.
+								 *
+								 * `~~tools~~ **done**; **exposure through MCP is not**` is three tools delivered and one
+								 * exposure owed, in a single row. A reader that turned a strikethrough into a verdict had
+								 * nowhere to put "some of it", counted the row among the done ones, and printed the half
+								 * that is owed in the same line as the half that is not. So a row is split into the things it
+								 * is made of, and the page says which of them are owed.
+								 */}
+								One row can hold both halves at once — three tools delivered and the exposure to MCP owed is
+								written in a single cell — so each half is read and printed on its own line.
+							</p>
 							<div class="mt-6 grid sm:grid-cols-2 gap-3">
 								{/*
 							 * The family verdict's own projection carries the domain and nothing

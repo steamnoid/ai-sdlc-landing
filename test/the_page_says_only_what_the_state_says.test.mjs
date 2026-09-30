@@ -423,3 +423,20 @@ describe("the backlog on the page, and the halves of a row", () => {
 	});
 });
 
+describe("the section that explains the reading, and whether it is still true", () => {
+	// **This paragraph explained a rule the page had stopped using.** It said a phase's state is
+	// read from a strikethrough or the word done or nothing, which is a rule with three answers and
+	// no room for the row that holds both — the row that was counted as done while its own cell said
+	// the exposure was not. The explanation is where a reader looks to find out why a number is what
+	// it is, so an explanation of a rule that is no longer the one in force is worse than none.
+	it("says that one row can hold both halves, because that is what a reader will be looking at", () => {
+		assert.match(
+			the_markup_of(),
+			/One row can hold both halves at once/,
+			"the section that explains how a mark is read does not mention that a row can be half " +
+				"delivered. A reader looking at `exposure through MCP is not` under a struck-through row " +
+				"has been told only that a strikethrough means done.",
+		);
+	});
+});
+
