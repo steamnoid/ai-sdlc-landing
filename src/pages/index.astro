@@ -359,19 +359,39 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 												</tr>
 											</thead>
 											<tbody>
-												{the_domain.the_projects
-													.filter((a_project) => a_project.was_read)
-													.map((a_project) => (
-														<tr class="border-b border-zinc-100 last:border-0 align-top">
-															<td class="py-2 pr-4 font-mono text-[12px] whitespace-nowrap">{a_project.name}</td>
-															<td class="py-2 pr-4 text-zinc-600">{a_project.how_the_domain_was_read}</td>
-															<td class="py-2 pr-4 font-mono text-[12px]">{a_project.the_name_the_move_table_goes_by}</td>
-															<td class="py-2 pr-4 text-zinc-600">{a_project.how_a_stage_is_written ?? "—"}</td>
-															<td class="py-2 text-zinc-600">
-																{a_project.how_the_project_says_who_must_hold_a_stage ?? "—"}
+												{/*
+												 * **Every project, and a reason in place of the columns for one that
+												 * could not be read.** This filtered them out with no row and no
+												 * reason, so a table whose heading says "said four ways" held one
+												 * row on the day a repository was unreachable — while the family
+												 * card two hundred lines above kept the project and printed the
+												 * rule in as many words: "Dropping it would be telling you the
+												 * family has fewer members than it has." Four of four are readable
+												 * every day, so this had never happened.
+												 *
+												 * A row of four empty cells was not the alternative: it reads as a
+												 * project that declared nothing, which is a claim about the work
+												 * rather than about the reading.
+												 */}
+												{the_domain.the_projects.map((a_project) => (
+													<tr class="border-b border-zinc-100 last:border-0 align-top">
+														<td class="py-2 pr-4 font-mono text-[12px] whitespace-nowrap">{a_project.name}</td>
+														{a_project.was_read ? (
+															<>
+																<td class="py-2 pr-4 text-zinc-600">{a_project.how_the_domain_was_read}</td>
+																<td class="py-2 pr-4 font-mono text-[12px]">{a_project.the_name_the_move_table_goes_by}</td>
+																<td class="py-2 pr-4 text-zinc-600">{a_project.how_a_stage_is_written ?? "\u2014"}</td>
+																<td class="py-2 text-zinc-600">
+																	{a_project.how_the_project_says_who_must_hold_a_stage ?? "\u2014"}
+																</td>
+															</>
+														) : (
+															<td class="py-2 text-zinc-600 italic" colSpan={4}>
+																not read — {a_project.why_not ?? "the run recorded no reason, which is a fault in the run"}
 															</td>
-														</tr>
-													))}
+														)}
+													</tr>
+												))}
 											</tbody>
 										</table>
 									</div>

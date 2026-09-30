@@ -618,3 +618,88 @@ describe("what the page publishes beside itself, and whether it is everything it
 	});
 });
 
+describe("a project the collector could not read, in the table that compares four projects", () => {
+	// **The family card keeps it and the comparison table drops it.** One section of this page
+	// prints an unreadable project with its reason and states the rule in as many words — "A
+	// repository that could not be read is still here, with the reason. Dropping it would be
+	// telling you the family has fewer members than it has." A few hundred lines down, a table
+	// whose whole purpose is comparing four projects filters those projects out with no row and no
+	// reason, so the page contradicts itself within one screen.
+	//
+	// **Four of four are readable, every day, so this has never happened.** That is the same
+	// condition as every other defect found today: a path nothing reaches until the day it is
+	// needed.
+	const A_FAMILY_WITH_ONE_UNREADABLE = {
+		the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+		the_family: [
+			JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8")).the_family[0],
+			{
+				owner: "steamnoid",
+				name: "a-project-nobody-could-read",
+				was_read: false,
+				why_not: "the repository answered 404",
+				language: "rust",
+			},
+		],
+	};
+
+	/**
+	 * The words of the table's own section, and not of the page.
+	 *
+	 * **The first version of these three assertions read the whole page and all three passed** —
+	 * the family card prints the unreadable project with its reason, so every string they looked for
+	 * was on the page two hundred lines above the table they were about. A test that passes for a
+	 * reason other than the one it names is worse than no test, and this repository has been bitten
+	 * by that four times already.
+	 */
+	const the_table_from = (a_state) => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-unread-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		const the_page = build_the_page(at, a_directory, { write: a_state });
+		const where_it_starts = the_markup_of_the_page(the_page).indexOf('<section id="domain"');
+		const where_it_ends = the_markup_of_the_page(the_page).indexOf('<section id="differ"', where_it_starts);
+		assert.notEqual(where_it_starts, -1, "the built page has no section with the id the table is in");
+		assert.notEqual(where_it_ends, -1, "the section after the table is not where this helper looks");
+		return the_words_in(the_markup_of_the_page(the_page).slice(where_it_starts, where_it_ends));
+	};
+
+	/** The markup just built, read from disk rather than from whichever page was last written. */
+	function the_markup_of_the_page(a_page) {
+		return readFileSync(a_page, "utf8");
+	}
+
+	it("still prints the project, because a table about four projects cannot show three silently", () => {
+		const the_reading = the_table_from(A_FAMILY_WITH_ONE_UNREADABLE);
+
+		assert.match(
+			the_reading,
+			/a-project-nobody-could-read/,
+			"the table of the same three things said four ways dropped the project that could not be " +
+				"read, with no row and no reason. The family card keeps it two hundred lines above and " +
+				"says in words that dropping it would be telling the reader the family has fewer members.",
+		);
+	});
+
+	it("says why it could not be read, rather than printing a row of empty cells", () => {
+		const the_reading = the_table_from(A_FAMILY_WITH_ONE_UNREADABLE);
+
+		assert.match(
+			the_reading,
+			/the repository answered 404/,
+			"the row exists and says nothing. A table cell with a name in it and no values reads as a " +
+				"project that declared nothing, which is a claim about the work and not about the reading.",
+		);
+	});
+
+	it("still counts it among the four the table is about", () => {
+		const the_reading = the_table_from(A_FAMILY_WITH_ONE_UNREADABLE);
+
+		assert.doesNotMatch(
+			the_reading,
+			/said four ways[\s\S]{0,400}?1 of 2/,
+			"the table's own heading says four ways while the table holds one row. The heading is a " +
+				"claim about how many projects are being compared.",
+		);
+	});
+});
+

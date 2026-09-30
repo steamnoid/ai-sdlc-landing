@@ -150,6 +150,37 @@ above that line said the fresh clone could not be built and then did nothing abo
 
 ---
 
+## The skip has never fired, and every time it has not fired it was right
+
+**Measured on the 30th, after an hour spent assuming otherwise.** Every CI run reports
+`has_changed=true`, and the suspicion was that a field which changes on every run is being
+compared — the same shape as the duration that lived inside the suite's verdict sentence and
+was fixed earlier today.
+
+The measurement says the suspicion was wrong. Two full collects of all four projects, run one
+after the other, differ in 21 fields and **every one of them is a real change**:
+
+| | first collect | second |
+|---|---|---|
+| `ai-sdlc-os` | 1063 passed, 1 failed | 1064 passed, 0 failed |
+| `ai-sdlc-os-plus` | 317 passed | 314 passed |
+| `ai-sdlc-app-rs` | 590 passed, 9 failed | 599 passed, 0 failed |
+| `ai-sdlc-app-rs-plus` | 140 passed, 2 failed | 142 passed, 0 failed |
+
+Somebody was fixing these repositories while the two collects ran. `the_build.read_at` and the
+rest are correctly ignored, and the suite's output is already read through a rule that takes
+the duration out of it — so the mechanism works and the family is moving several times a day.
+
+**The two projects whose suites were stable confirmed it independently.** `ai-sdlc-os` run by
+hand twice printed `1064 passed, 1 skipped, 149 deselected` both times, and the only difference
+between the two outputs in their entirety was `in 17.62s` against `in 17.21s` — a difference
+the comparison already normalises away.
+
+**The thing worth keeping is not the finding, it is the cost.** An hour went into looking for a
+bug in the skip because the number looked wrong, and the number was right. The only thing that
+would have answered it sooner is running the thing twice and reading the counts, which is what
+should have happened first.
+
 ## The section that is usually absent
 
 **`Since the last read` prints nothing, and that is the correct state of it today.** It names
