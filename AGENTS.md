@@ -181,6 +181,38 @@ bug in the skip because the number looked wrong, and the number was right. The o
 would have answered it sooner is running the thing twice and reading the counts, which is what
 should have happened first.
 
+## Five numbers in this page's own prose, and the rule they produced
+
+| the sentence | what it claimed |
+|---|---|
+| "One domain, four times over" | four projects were read |
+| "Two of the four are imported … two are read out of Rust source" | two and two |
+| "The same three things, said four ways" | four projects to compare |
+| "Two of the four projects mark nothing" | which two |
+| "Three of these four write about a sibling project without saying which one" | which three, and whether they name it |
+
+**Five hand-typed numbers in a page whose argument is that every number on it was read out of a
+repository.** Four became false the day a repository answered 404 — under a header that says
+"Read from 3 of 4 repositories". The fifth was false on the live site from the day it was
+written: one of the four has any lineage at all, and that one **names** its source three times
+over, so both the count and the clause after it were about no project on the page.
+
+**All five are counted from the state now, and none of them is a number somebody typed.**
+`test/the_page_says_only_what_the_state_says.test.mjs` reads the page with one, two, three and
+four projects unreadable and demands that the sentences follow.
+
+**The rule that came out of it: this page may not contain a number about the family that it did
+not count.** Prose about the family is fine, and most of this file is prose about the family.
+A digit in a sentence above a table is a claim, and a claim in a paragraph is exactly as stale
+as one in a cell.
+
+**And the counts are read from the right object, which was its own bug.** The count of projects
+that mark nothing is read out of the raw state and not out of the family's projection: the
+projection carries what a project *declares* — stages, roles, moves — and carries no documents,
+so counting marks there found zero and printed "every project that could be read marks
+something" on a page where two of the four mark nothing. **A number read from the wrong object is
+not a number, and this one erred towards the nicer sentence.**
+
 ## The section that is usually absent
 
 **`Since the last read` prints nothing, and that is the correct state of it today.** It names
