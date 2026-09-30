@@ -1055,3 +1055,62 @@ describe("what the verdict section claims about a comparison it did not make", (
 	});
 });
 
+describe("the closing line of the page's own pitch, about where it got its facts", () => {
+	// **It said "Everything below was read out of the four repositories rather than written
+	// here."** With no repository readable, nothing below had been read out of any of them. It is the
+	// one sentence on this page that is about this page rather than about the family, so a reader has
+	// no reason to doubt it and no way to check it except by noticing the header says 0 of 4.
+	const none_readable = () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		return {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: a_state.the_family.map((a_project) => ({
+				owner: a_project.owner,
+				name: a_project.name,
+				was_read: false,
+				why_not: "the repository answered 404",
+			})),
+		};
+	};
+
+	const build_it = (a_state) => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-pitch-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		return the_words_on_the_page(build_the_page(at, a_directory, { write: a_state }));
+	};
+
+	it("does not say everything below was read out of the repositories when none was", () => {
+		const the_reading = build_it(none_readable());
+
+		assert.doesNotMatch(
+			the_reading,
+			/Everything below was read out of the four repositories/,
+			"the page's own pitch says everything below was read out of the repositories, on a reading " +
+				"where none of them could be reached. It is the one sentence here that is about this page " +
+				"rather than about the family.",
+		);
+	});
+
+	it("says where its facts came from, which on a reading like that is nowhere", () => {
+		const the_reading = build_it(none_readable());
+
+		assert.match(
+			the_reading,
+			/none of (them|the four) could be read|nothing below was read|could not be reached/i,
+			"the page gives no sentence about where its facts came from when it has none. The pitch then " +
+				"ends without saying what it is, which reads as a page that forgot to finish a sentence.",
+		);
+	});
+
+	it("still says it when projects were read, because that sentence is true and worth having", () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		const the_reading = build_it({ ...a_state, the_build: a_state.the_build });
+
+		assert.ok(
+			the_reading.includes("Everything below was read out of the four repositories rather than written here"),
+			"the page stopped claiming where it read its facts even when it did read them. A conditional " +
+				"that is only ever exercised in its false branch is a conditional that has never been true.",
+		);
+	});
+});
+

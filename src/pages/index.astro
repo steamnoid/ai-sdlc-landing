@@ -224,8 +224,11 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 						<p class="mt-5 text-[17px] leading-7 text-zinc-600 max-w-2xl">
 							<span class="font-medium text-zinc-900">ai-sdlc</span> is a system that takes a public GitHub repository,
 							asks language models bounded questions about it, has a person approve every answer, and delivers a pull
-							request. It is being built four times over, in two languages, from the same specification. Everything below
-							was read out of the four repositories rather than written here.
+							request. It is being built four times over, in two languages, from the same specification.{" "}
+							{how_many_read === 0
+								? "None of the four could be reached for this reading, so there is nothing below that was " +
+									"read out of any of them — only what this page was asked to say and no more."
+								: "Everything below was read out of the four repositories rather than written here."}
 						</p>
 
 						<div

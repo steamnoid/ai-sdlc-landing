@@ -197,7 +197,25 @@ repository.** Four became false the day a repository answered 404 — under a he
 written: one of the four has any lineage at all, and that one **names** its source three times
 over, so both the count and the clause after it were about no project on the page.
 
-**All five are counted from the state now, and none of them is a number somebody typed.**
+**And a sixth sentence had the same fault without a number in it.** The pitch ends *"Everything
+below was read out of the four repositories rather than written here"* — with no repository
+reachable, nothing below had been read out of any of them. It is the one sentence here that is
+about this page rather than about the family, so a reader has no reason to doubt it and no way to
+check it except by noticing the header says 0 of 4. It now says so.
+
+The same probe found the verdict section claiming a comparison it had not made — *"0 of 4
+repositories could be read, and their stages, roles and legal moves were compared one against
+another"* — which is worse, because it is in the section headed **the verdict about all four**.
+**A page about work in progress, on the day the work cannot be reached, said it had compared the
+work.**
+
+**The section called "How this page avoids lying" was checked at the same reading and is clean.**
+It describes the page's method rather than any one reading, so it is true whether or not
+anything was read — and on a reading where nothing was, every sentence in it is demonstrated
+rather than asserted. Not every section failed. That is worth saying, because the finding is
+only worth something if it was a search rather than an expectation.
+
+**All five numbers are counted from the state now, and none of them is a number somebody typed.**
 `test/the_page_says_only_what_the_state_says.test.mjs` reads the page with one, two, three and
 four projects unreadable and demands that the sentences follow.
 
