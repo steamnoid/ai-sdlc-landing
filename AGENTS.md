@@ -150,6 +150,28 @@ above that line said the fresh clone could not be built and then did nothing abo
 
 ---
 
+## The section that is usually absent
+
+**`Since the last read` prints nothing, and that is the correct state of it today.** It names
+the items of the family's own lists that stopped being owed since the reading the site last
+published, and the last three runs found none in any of the four projects — because nobody has
+struck a line in that time. The section, and its link in the navigation, both appear only when
+there is something under them, because a heading with nothing under it reads as a section that
+was considered and found empty.
+
+**For two of the four it will never appear.** `ai-sdlc-os-plus` and `ai-sdlc-app-rs-plus` mark
+no phase either way, so nothing in their lists can move. That is not a limitation of the section;
+it is the finding the page already prints for them, with the place a mark would go.
+
+**A difference is not a movement, and the two answers come from one fetch.** The run re-reads
+the family and most of what changed is suite counts, licences and commit pins — sixteen facts on
+the last run, none of them work. `scripts/what_differs_from_what_is_published.mjs` answers both
+"should this be published" and "what stopped being owed" from a single comparison of the site
+against this run, because asking twice would mean fetching twice with a deployment landing
+between the calls.
+
+---
+
 # What the schedule actually does, measured rather than assumed
 
 **An earlier version of this section was worse than having none, and it is worth saying how.**
