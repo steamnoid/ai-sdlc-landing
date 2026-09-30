@@ -916,3 +916,142 @@ describe("the sentence above the lineage, and whether it is about this family", 
 	});
 });
 
+describe("a reading in which nothing could be read at all", () => {
+	// **The page said "Every project that could be read marks something."** It is true, and there
+	// were no projects that could be read. A sentence about a family of zero, in a section headed
+	// "How they differ", reads as reassurance rather than as nothing to say — and it is the only
+	// sentence in that section that survives a total outage, so it is the one a reader is left with.
+	const none_readable = () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		return {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: a_state.the_family.map((a_project) => ({
+				owner: a_project.owner,
+				name: a_project.name,
+				was_read: false,
+				why_not: "the repository answered 404",
+				language: a_project.language,
+			})),
+		};
+	};
+
+	const the_page_when_nothing_could_be_read = () => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-none-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		return the_words_on_the_page(build_the_page(at, a_directory, { write: none_readable() }));
+	};
+
+	it("says that nothing was read, rather than that everything marks something", () => {
+		const the_reading = the_page_when_nothing_could_be_read();
+
+		assert.doesNotMatch(
+			the_reading,
+			/Every project that could be read marks something/,
+			"the page says every project that could be read marks something, and no project could be " +
+				"read. It is the only sentence in the section that survives a total outage, so it is " +
+				"the one a reader is left holding.",
+		);
+	});
+
+	it("says so in words, so a reader is not left reading a section about nothing", () => {
+		const the_reading = the_page_when_nothing_could_be_read();
+
+		assert.match(
+			the_reading,
+			/none of (them|these) could be read|no project could be read|could not be read, so there is nothing to say/i,
+			"the page gives no sentence at all about a reading in which nothing could be read. A section " +
+				"with its prose missing reads as a section that was considered and found nothing to say.",
+		);
+	});
+
+	it("still keeps every project with its reason, because that is the rule the page states", () => {
+		const the_reading = the_page_when_nothing_could_be_read();
+
+		for (const a_project of none_readable().the_family) {
+			assert.ok(
+				the_reading.includes(a_project.name),
+				`${a_project.name} is missing from a page built from a reading that holds it. The page says ` +
+					"in words that dropping it would be telling the reader the family has fewer members.",
+			);
+		}
+	});
+});
+
+describe("what the verdict section claims about a comparison it did not make", () => {
+	// **The most trusted sentence on the page claimed a comparison that never happened.**
+	//
+	// With nothing readable it printed *"0 of 4 repositories could be read, and their stages, roles
+	// and legal moves were compared one against another."* The first half is generated and true. The
+	// second half is prose that assumed there was something to compare, and it is in the section
+	// headed **the verdict about all four** — the one part of this page a reader has the least
+	// reason to doubt.
+	//
+	// A page about work in progress, on the day the work cannot be reached, should say it could not
+	// be reached.
+	const nothing_readable = () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		return {
+			the_build: { read_at: "2026-01-01T00:00:00.000Z" },
+			the_family: a_state.the_family.map((a_project) => ({
+				owner: a_project.owner,
+				name: a_project.name,
+				was_read: false,
+				why_not: "the repository answered 404",
+			})),
+		};
+	};
+
+	const build_it = (a_state) => {
+		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-verdict-"));
+		after(() => rmSync(a_directory, { recursive: true, force: true }));
+		return the_words_on_the_page(build_the_page(at, a_directory, { write: a_state }));
+	};
+
+	it("does not say anything was compared when nothing was read", () => {
+		const the_reading = build_it(nothing_readable());
+
+		assert.doesNotMatch(
+			the_reading,
+			/were compared one against another/,
+			"the verdict section says the stages, roles and legal moves were compared one against another " +
+				"on a reading where no repository could be read. It is in the one section a reader has the " +
+				"least reason to doubt.",
+		);
+	});
+
+	it("says the comparison could not be made, so the section is not a section about nothing", () => {
+		const the_reading = build_it(nothing_readable());
+
+		assert.match(
+			the_reading,
+			/could not be compared|there was nothing to compare|nothing could be compared/i,
+			"the verdict section gives no sentence about a comparison it could not make. A reader who sees " +
+				'only "0 of 4 repositories could be read" is left with a number and no statement of what it ' +
+				"does and does not establish.",
+		);
+	});
+
+	it("still says the comparison was made when projects were read", () => {
+		const a_state = JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8"));
+		const the_reading = build_it({ ...a_state, the_build: a_state.the_build });
+
+		assert.ok(
+			the_reading.includes("compared one against another"),
+			"the page stopped claiming any comparison even when projects were read. The sentence is about " +
+				"a comparison that happened and it is still true — a fix that reads like a retraction is a " +
+				"fix that has thrown away something correct.",
+		);
+	});
+
+	it("does not say it prints a lineage it has none of, on a reading where nothing was read", () => {
+		const the_reading = build_it(nothing_readable());
+
+		assert.doesNotMatch(
+			the_reading,
+			/prints which one the file records/,
+			"the page says it prints which lineage each file records, and there are no files to record one. " +
+				"The sentence is dangling on exactly the day it is most likely to be read.",
+		);
+	});
+});
+

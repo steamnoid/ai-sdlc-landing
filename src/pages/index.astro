@@ -238,9 +238,13 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 							<p class="text-xs uppercase tracking-wider text-zinc-500 mb-2">The verdict about all four</p>
 							<p class="text-2xl font-semibold tracking-tight">{the_domain.verdict}</p>
 							<p class="mt-2 text-[15px] text-zinc-600">
-								{how_many_read} of {the_domain.how_many_were_asked_about} repositories could be read, and their stages, roles
-								and legal moves were compared one against another. Conventions — how a stage is written, where the table
-								of moves lives — are laid out side by side rather than counted as agreement.
+								{how_many_read} of {the_domain.how_many_were_asked_about} repositories could be read, and{" "}
+								{how_many_read === 0
+									? "there was nothing to compare — so this page is not saying they agree, and not " +
+										"saying they differ"
+									: "their stages, roles and legal moves were compared one against another"}.{" "}
+								Conventions — how a stage is written, where the table of moves lives — are laid out side by side
+								rather than counted as agreement.
 							</p>
 							{the_domain.why_not && <p class="mt-3 text-sm text-amber-700">{the_domain.why_not}</p>}
 						</div>
@@ -469,11 +473,13 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 							<h2 class="text-2xl font-semibold tracking-tight">How they differ</h2>
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								A phase's state is read from the mark its own document puts on it — a strikethrough, the word done, or
-								nothing at all. {how_many_mark_nothing === 0
-									? "Every project that could be read marks something"
-									: `${how_many_mark_nothing} of the ${how_many_read} ${how_many_read === 1 ? "project marks" : "projects mark"} nothing`}, and a page
-								that reported a missing mark as "not done" would be making a claim about the work that the
-								document declined to make.
+								nothing at all. {how_many_read === 0
+									? "None of them could be read, so there is nothing here to say about what they mark"
+									: how_many_mark_nothing === 0
+										? "Every project that could be read marks something"
+										: `${how_many_mark_nothing} of the ${how_many_read} ${how_many_read === 1 ? "project marks" : "projects mark"} nothing`}, and a
+								page that reported a missing mark as "not done" would be making a claim about the work that
+								the document declined to make.
 							</p>
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								{/*
@@ -591,9 +597,8 @@ const how_many_mark_nothing = the_state.the_family.filter((a_project) => {
 							<p class="mt-2 text-[15px] text-zinc-600 max-w-2xl">
 								Read from the two files that can record a lineage — a project's own lock file and its licence —
 								and from nowhere else. {how_many_name_another === 0
-									? "None of these four names another project"
-									: `${how_many_name_another} of these four ${how_many_name_another === 1 ? "names" : "name"} another project`},
-								{" "}and this page prints which one the file records rather than drawing a line it cannot check.
+									? "None of these four names another project."
+									: `${how_many_name_another} of these four ${how_many_name_another === 1 ? "names" : "name"} another project, and this page prints which one the file records rather than drawing a line it cannot check.`}
 							</p>
 							<div class="mt-6 space-y-3">
 								{the_family.the_projects.map((a_project) => {
