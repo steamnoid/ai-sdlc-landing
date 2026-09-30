@@ -344,45 +344,91 @@ const how_many_read = the_domain.the_projects.filter((a_project) => a_project.wa
 							 * project rather than about the family.
 							 */}
 							{the_family.the_projects.map((a_project) => {
-									const the_phases = a_project.what_its_documents_say?.phases ?? null;
-									const the_done = the_phases?.phases.filter((a_phase) => a_phase.verdict === "done") ?? [];
-									return (
-										<div class="rounded-2xl border border-zinc-200 p-5">
-											<p class="font-mono text-sm font-medium">{a_project.name}</p>
+								const the_phases = a_project.what_its_documents_say?.phases ?? null;
+								const the_done = the_phases?.phases.filter((a_phase) => a_phase.verdict === "done") ?? [];
+								const the_partly = the_phases?.phases.filter((a_phase) => a_phase.verdict === "partly") ?? [];
+								const the_untouched = the_phases?.phases.filter((a_phase) => a_phase.verdict === "not started") ?? [];
+								return (
+									<div class="rounded-2xl border border-zinc-200 p-5">
+										<p class="font-mono text-sm font-medium">{a_project.name}</p>
+										{the_phases === null ? (
 											<p class="mt-3 text-[13px] text-zinc-600">
-												{the_phases === null ? (
-													"No backlog table was read from this project."
-												) : (
-													<>
-														<span class="text-zinc-900 tabular-nums">
-															{the_done.length} of {the_phases.phases.length}
-														</span>{" "}
-														phases carry a mark saying they are done
-														{the_done.length === 0 && (
-															<span class="text-amber-700">
-																{" "}
-																— this project marks none of them either way
-															</span>
-														)}
-													</>
-												)}
+												No backlog table was read from this project.
 											</p>
-											{the_phases !== null && (
-												<ul class="mt-3 space-y-1">
-													{the_phases.phases.map((a_phase) => (
-														<li class="text-[13px] flex gap-2 items-start">
+										) : (
+											<>
+												<p class="mt-3 text-[13px] text-zinc-600">
+													{/*
+													 * Three numbers rather than one, because a row that is half
+													 * done is not a row that is done. This said "1 of 4 phases carry
+													 * a mark saying they are done" over a row that read "exposure
+													 * through MCP is not" — a count and a sentence disagreeing
+													 * inside four lines of each other.
+													 */}
+													<span class="text-zinc-900 tabular-nums">{the_done.length} done</span>{" · "}
+													{the_partly.length > 0 && (
+														<>
+															<span class="text-zinc-900 tabular-nums">{the_partly.length} partly</span>{" · "}
+														</>
+													)}
+													<span class="text-zinc-900 tabular-nums">{the_untouched.length} not started</span>
+													{" "}
+													of {the_phases.phases.length} in its own backlog
+												</p>
+												{/*
+												 * **What a reader can act on, and the only thing this page can
+												 * say about a project that marks nothing.** Two of the four
+												 * real projects are in this state and the old line stopped at
+												 * naming it; where the mark would go is one sentence and it is
+												 * the difference between a finding and a shrug.
+												 */}
+												{the_done.length === 0 && the_partly.length === 0 && (
+													<p class="mt-2 text-[13px] text-amber-700">
+														This project marks no phase either way. A mark is a strikethrough
+														through the slice in the table under <code class="font-mono">Backlog</code>{" "}
+														in this project's own <code class="font-mono">AGENTS.md</code>.
+													</p>
+												)}
+											</>
+										)}
+										{the_phases !== null && (
+											<ul class="mt-3 space-y-2">
+												{the_phases.phases.map((a_phase) => (
+													<li class="text-[13px]">
+														<div class="flex gap-2 items-start">
 															<span class="font-mono text-zinc-400 tabular-nums shrink-0 w-5">{a_phase.number}</span>
-															<span class={a_phase.verdict === "done" ? "line-through text-zinc-400" : ""}>
-																{as_plain_text(a_phase.the_slice)}
+															{/*
+															 * The items, and not the cell. A cell can hold a delivered thing and
+															 * an owed thing in one line — `~~tools~~ **done**; **MCP is not**` —
+															 * and printing the cell struck through or not struck through cannot
+															 * say which half is which. So each half gets its own line, and the
+															 * delivered one is struck because the document struck it.
+															 */}
+															<span class="min-w-0 flex-1">
+																{a_phase.the_items.map((an_item) => (
+																	<span class="block">
+																		{an_item.is_done ? (
+																			<span class="line-through text-zinc-400">{an_item.the_slice}</span>
+																		) : (
+																			<span class="text-zinc-700">{an_item.the_slice}</span>
+																		)}
+																	</span>
+																))}
 															</span>
-														</li>
-													))}
-												</ul>
-											)}
-										</div>
-									);
-								})}
-							</div>
+														</div>
+														{a_phase.verdict === "partly" && (
+															<p class="mt-1 pl-7 text-[12px] text-amber-700">
+																half of this row is still owed, and the document says so in the row
+															</p>
+														)}
+													</li>
+												))}
+											</ul>
+										)}
+									</div>
+								);
+							})}
+						</div>
 						</div>
 					</section>
 

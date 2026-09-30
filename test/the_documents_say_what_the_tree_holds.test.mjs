@@ -31,6 +31,7 @@ import { describe, it } from "node:test";
 
 import {
 	how_the_documents_mark_a_phase_as_done,
+	the_items_of,
 	what_the_licence_says,
 	what_the_phases_say,
 } from "../src/page/what_the_documents_say.mjs";
@@ -49,7 +50,11 @@ describe("a phase marked in the two ways the family marks one", () => {
 		assert.equal(how_the_documents_mark_a_phase_as_done("~~the domain: entities~~ **done**"), "a strikethrough and the word done");
 	});
 
-	it("says a phase struck alone is done too, because the strike is the mark", () => {
+	it("reports a phase struck alone as struck, and no more than that", () => {
+		// **The title of this test used to say a struck phase "is done too, because the strike is the
+		// mark".** That was true of the function and false of the page: the function reports what the
+		// document did, and the page used to turn it straight into a verdict. `ai-sdlc-app-rs` phase
+		// 4 is struck and says four of eight agents remain, and the page printed it as done.
 		assert.equal(how_the_documents_mark_a_phase_as_done("~~the domain: entities~~"), "a strikethrough");
 	});
 
@@ -107,12 +112,27 @@ describe("a backlog table, read out of a document", () => {
 		);
 	});
 
-	it("gives each phase a verdict that follows its mark and nothing else", () => {
+	it("gives each phase a verdict that follows the things its own row is made of, and nothing else", () => {
+		// **This asserted the old vocabulary, which had a verdict called `in neither way`.** That was
+		// a mark leaking into a verdict, and it is what let a struck row that said four of eight
+		// agents remain print as `done`: `in neither way` and `done` were the only two answers, so
+		// "some of it" had nowhere to go and the row that held both halves was rounded to the
+		// tidier one.
 		assert.deepEqual(
 			the_phases.map((a_phase) => a_phase.verdict),
-			["in neither way", "done", "in neither way"],
-			"a phase's verdict did not follow the mark in its own row. The three verdicts are the only " +
-				"three this page may print, and each one has to be traceable to a mark in the document.",
+			["not started", "done", "not started"],
+			"a phase's verdict did not follow its own row. The three verdicts are the only three this " +
+				"page may print, and each one has to be traceable to the items in the document's cell.",
+		);
+	});
+
+	it("keeps the mark beside the verdict, because what the document did is a separate fact", () => {
+		assert.equal(
+			the_phases[0].how_it_was_marked,
+			"in neither way",
+			"the mark was dropped when the verdict became three-valued. A reader who wants to know " +
+				"whether a project has stopped marking its phases cannot tell from a verdict of " +
+				"`not started`, which is what a project that never marks anything also produces.",
 		);
 	});
 
@@ -205,3 +225,143 @@ describe("a licence, read out of a file", () => {
 		);
 	});
 });
+
+describe("a phase that is one thing and a phase that is two", () => {
+	// **Two verdicts, because a row that is half done is not a row that is done.** The page read one
+	// and it was wrong on the family as it stands: `ai-sdlc-app-rs` phase 4 is struck, the strike is
+	// a mark, and the row says four of eight agents remain.
+	const A_TABLE_WITH_EACH_SHAPE = `# Backlog
+
+| Phase | Slice | Gate |
+|---|---|---|
+| 1 | ~~Repository Discovery as a real agent~~ **done** | a real model answers with a report |
+| 2 | ~~\`github.clone_repository\`, the filesystem tools~~ **done**; **exposure through MCP is not** | every tool is asserted on its arguments |
+| 3 | \`ARecordOfARun\`: one SQLite table | a whole run is reconstructable |`;
+
+	const the_phases_of = (a_document) => what_the_phases_say(a_document, "AGENTS.md").phases;
+
+	it("calls a phase whose every item is done done", () => {
+		assert.equal(the_phases_of(A_TABLE_WITH_EACH_SHAPE)[0].verdict, "done");
+	});
+
+	it("calls a phase with one item done and one owed partly, and not done", () => {
+		assert.equal(
+			the_phases_of(A_TABLE_WITH_EACH_SHAPE)[1].verdict,
+			"partly",
+			"the row reports three tools delivered and one exposure owed, and the verdict is `done`. " +
+				"The page counts it among the phases the project has finished while its own words say " +
+				"the exposure is not.",
+		);
+	});
+
+	it("calls a phase with nothing done not started, whatever its marker says", () => {
+		assert.equal(the_phases_of(A_TABLE_WITH_EACH_SHAPE)[2].verdict, "not started");
+	});
+
+	it("carries the items of each phase in the state, so a reader can be shown the halves", () => {
+		const a_partly = the_phases_of(A_TABLE_WITH_EACH_SHAPE)[1];
+
+		assert.deepEqual(
+			a_partly.the_items.map((an_item) => an_item.is_done),
+			[true, false],
+			"the state holds a verdict of `partly` and no way to see which half is owed, so the page has " +
+				"to print something and cannot check that what it prints is the half that is left",
+		);
+	});
+});
+
+describe("a phase is more than one thing, and this page is where that shows", () => {
+	// **These four slices are copied from the four repositories as they stand.** Not invented
+	// shapes for a test to pass against: every marked row in the family is one of them, and the
+	// difference between them is the whole of what is wrong with the page today.
+	//
+	// | shape | a real slice | what it says |
+	// |---|---|---|
+	// | wholly | `~~Repository Discovery as a real agent~~ **done**` | it, and nothing else |
+	// | partly, marked | `~~\`github.clone_repository\`, the filesystem tools~~ **done**; **exposure through MCP is not**` | it, and the MCP exposure is not |
+	// | partly, unmarked | `~~\`agents\` and \`ask_the_model_for\`~~ **four of eight agents; discovery, verification and the pull request remain**` | them, and four agents are not |
+	// | none | `\`ARecordOfARun\`: one SQLite table` | none of it |
+	//
+	// **The page called the third one done.** It is a strikethrough, the strike is a mark, so the
+	// verdict was `done` — on the same row that says four of eight agents remain. That is a
+	// sentence contradicting itself, in the one place a reader is least likely to check, on a
+	// number that a project's progress is read from.
+
+	it("finds the done thing in a phase that is wholly done, and no outstanding one", () => {
+		const the_items = the_items_of("~~Repository Discovery as a real agent~~ **done**");
+
+		assert.deepEqual(
+			the_items,
+			[{ the_slice: "Repository Discovery as a real agent", is_done: true }],
+			"a phase struck through with the word done beside it is one delivered thing, and the word " +
+				"beside the strike is the marker rather than a second thing to do",
+		);
+	});
+
+	it("finds the outstanding thing hiding in a marked phase, and keeps it visible", () => {
+		const the_items = the_items_of(
+			"~~`github.clone_repository`, the filesystem tools~~ **done**; **exposure through MCP is not**",
+		);
+
+		assert.deepEqual(
+			the_items,
+			[
+				{ the_slice: "`github.clone_repository`, the filesystem tools", is_done: true },
+				{ the_slice: "exposure through MCP is not", is_done: false },
+			],
+			"the tools are delivered and the MCP exposure is not, and both of those are one sentence in " +
+				"the document. Reporting the row as done threw away the half of it that is owed.",
+		);
+	});
+
+	it("finds the outstanding thing in a phase that was struck without the word done", () => {
+		// **This is the row the page called done while it said four of eight agents remain.**
+		const the_items = the_items_of(
+			"~~`agents` and `ask_the_model_for`~~ **four of eight agents; discovery, verification and the pull request remain**",
+		);
+
+		assert.equal(the_items.length, 2, "the phase is one thing done and one thing owed");
+		assert.equal(the_items[0].is_done, true, "the struck part of the row is the part that was done");
+		assert.match(
+			the_items[1].the_slice,
+			/four of eight agents/,
+			"the outstanding half of the row was dropped, and it is the half that names what is left",
+		);
+	});
+
+	it("reports a phase with no mark as one thing owed, and does not invent a part that is done", () => {
+		const the_items = the_items_of("`ARecordOfARun`: one SQLite table");
+
+		assert.deepEqual(the_items, [{ the_slice: "`ARecordOfARun`: one SQLite table", is_done: false }]);
+	});
+
+	it("reads the marker's own words off the outstanding half, so a done marker is not a task", () => {
+		const the_items = the_items_of("~~the domain: entities~~ **done**");
+
+		for (const an_item of the_items) {
+			assert.doesNotMatch(
+				an_item.the_slice,
+				/^\s*\**done\**\s*$/i,
+				`the marker "${an_item.the_slice}" was left on the page as a thing to do. A reader would ` +
+					"see an item called done among the outstanding work, which is the one label that cannot " +
+					"be wrong by accident.",
+			);
+		}
+	});
+
+	it("refuses a strike that was opened and never closed, rather than guessing where it ends", () => {
+		// **An odd number of `~~` is a document that has been edited halfway.** Half the rule applied
+		// to it would report the rest of a cell as outstanding work that nobody ever wrote, and this
+		// repository refuses documents it cannot read by name rather than answering from a partial
+		// reading — `refuses a document with no backlog at all, rather than borrowing another table`
+		// is the same decision one level up.
+		assert.throws(
+			() => the_items_of("~~the domain: entities **done**"),
+			/strikethrough/,
+			"an unclosed strikethrough was read as if it were closed. The page then reports as owed " +
+				"whatever the author had not finished typing, which is a fact about the page and not " +
+				"about the project.",
+		);
+	});
+});
+

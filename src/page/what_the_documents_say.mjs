@@ -36,6 +36,109 @@ export class TheDocumentIsNotReadableError extends Error {
 
 const NOTHING_IS_FOUND = "in neither way";
 
+/** The word a document writes to mark a phase done, and nothing else — four letters, to be sliced past. */
+const THE_MARKER = "done";
+
+/**
+ * The things a phase's slice is made of, and which of them are done.
+ *
+ * **A phase is often more than one thing, and a document says so inside one cell.**
+ * `~~`github.clone_repository`, the filesystem tools~~ **done**; **exposure through MCP is not**`
+ * is a row that reports three tools delivered and one exposure owed. Reading it as a single
+ * thing threw away the half that was owed, and the page then counted the row as done — on the
+ * same row that said the exposure was not.
+ *
+ * | a segment | what it is |
+ * |---|---|
+ * | between `~~` and `~~` | done — the document struck it |
+ * | before the word `done` | done — the document said so |
+ * | after the word `done` | not done |
+ * | a segment with neither | not done |
+ *
+ * **The strike is the rule and the word is a second rule inside what the strike left.** The
+ * word is found after the emphasis is taken off, so `**done**` and `done` mean the same thing,
+ * which is what `how_the_documents_mark_a_phase_as_done` already believed. The page marking a
+ * phase by the word alone and this function marking it not-done would be a contradiction
+ * printed on the page, in the one place nobody is checking.
+ *
+ * **Emphasis is taken off and nothing else is.** A backtick is a backtick: it is a word the
+ * project wrote, and `the_items_of` is not the place that decides a word does not matter.
+ *
+ * **An odd number of `~~` is refused.** That is a cell edited halfway, and guessing where the
+ * strike ends reports as owed whatever the author had not finished typing — a fact about this
+ * page rather than about the project. Every refusal in this file is by name for the same
+ * reason: `refuses a document with no backlog at all, rather than borrowing another table`.
+ */
+export function the_items_of(a_slice) {
+	const how_many_strikes = (a_slice.match(/~~/g) ?? []).length;
+	if (how_many_strikes % 2 !== 0) {
+		throw new TheDocumentIsNotReadableError(
+			`this slice carries ${how_many_strikes} strikethrough marks, which is an odd number, so the ` +
+				`cell was edited halfway: "${a_slice}". Every strikethrough in this family is written as a ` +
+				"pair, and reading half of one would report as owed whatever the author had not finished " +
+				"writing.",
+		);
+	}
+
+	const the_items = [];
+	const the_segments = a_slice.split("~~");
+	the_segments.forEach((a_segment, where_it_is) => {
+		const without_emphasis = a_segment.replace(/\*\*/g, "").trim();
+		const is_inside_a_strike = where_it_is % 2 === 1;
+
+		if (is_inside_a_strike) {
+			add_an_item(the_items, without_emphasis, true);
+			return;
+		}
+
+		const where_the_marker_is = without_emphasis.search(/\bdone\b/i);
+		if (where_the_marker_is === -1) {
+			add_an_item(the_items, without_emphasis, false);
+			return;
+		}
+		add_an_item(the_items, without_emphasis.slice(0, where_the_marker_is), true);
+		// **From after the word, and not from its start.** The marker is a mark; printing it as the
+		// first word of the outstanding half would put an item called `done` among the work that is
+		// left, which is the one label on this page that cannot be wrong by accident.
+		add_an_item(the_items, without_emphasis.slice(where_the_marker_is + THE_MARKER.length), false);
+	});
+	return the_items;
+}
+
+/** One item, with the punctuation a cell uses to join two clauses taken off its ends. */
+function add_an_item(the_items, some_text, is_done) {
+	const the_slice = some_text.replace(/^[\s;,—–-]+|[\s;,—–-]+$/g, "").replace(/\s+/g, " ").trim();
+	if (the_slice !== "") {
+		the_items.push({ the_slice, is_done });
+	}
+}
+
+/**
+ * What a phase amounts to, from the things it is made of.
+ *
+ * **A mark used to decide this and the half-done row said otherwise.** The mark is still
+ * reported — `how_it_was_marked` — because a reader who wants to know what the document did is
+ * entitled to it, and because two of the four projects mark nothing at all and saying so is a
+ * finding. What no longer decides is the verdict, because a strikethrough and the word `done`
+ * are both capable of appearing beside work that is not finished.
+ *
+ * | the items | the phase is |
+ * |---|---|
+ * | all done | `done` |
+ * | some done, some not | `partly` |
+ * | none done | `not started` |
+ * | none at all | `not started` — a row with no text in it is not a row that is finished |
+ */
+export function the_verdict_of(the_items) {
+	if (the_items.length === 0 || the_items.every((an_item) => !an_item.is_done)) {
+		return "not started";
+	}
+	if (the_items.every((an_item) => an_item.is_done)) {
+		return "done";
+	}
+	return "partly";
+}
+
 /**
  * How a slice marks its phase as done, or that it does not mark it.
  *
@@ -125,11 +228,12 @@ export function what_the_phases_say(a_document, where_it_was_read) {
 	return {
 		verdict: "read",
 		phases: the_phases.map((a_phase) => {
-			const the_mark = how_the_documents_mark_a_phase_as_done(a_phase.the_slice);
+			const the_items = the_items_of(a_phase.the_slice);
 			return {
 				...a_phase,
-				how_it_was_marked: the_mark,
-				verdict: the_mark === NOTHING_IS_FOUND ? NOTHING_IS_FOUND : "done",
+				how_it_was_marked: how_the_documents_mark_a_phase_as_done(a_phase.the_slice),
+				verdict: the_verdict_of(the_items),
+				the_items,
 				where_it_was_read: where_it_was_read,
 			};
 		}),

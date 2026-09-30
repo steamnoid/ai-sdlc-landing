@@ -82,6 +82,9 @@ function collect_the_fixtures() {
 }
 
 const what_was_collected = collect_the_fixtures();
+
+/** The markup of the one page this file builds, for assertions that are about tags rather than words. */
+let the_markup_of_the_page_built_from_the_fixtures = "";
 after(() => what_was_collected.afterwards());
 
 {
@@ -95,6 +98,7 @@ after(() => what_was_collected.afterwards());
 		before(() => {
 			where_the_page_landed = build_the_page(at, join(at, "dist"), { write: the_state });
 			the_markup = readFileSync(where_the_page_landed, "utf8");
+			the_markup_of_the_page_built_from_the_fixtures = the_markup;
 			the_words = the_words_on_the_page(where_the_page_landed);
 		});
 
@@ -194,21 +198,35 @@ after(() => what_was_collected.afterwards());
 		});
 
 		it("prints a phase count as a sentence with a number in it, not as a bare figure", () => {
+			// **This held the sentence the page used to say, and the sentence was the bug.** It read
+			// "N of M phases carry a mark saying they are done" and counted a row that its own cell
+			// said was half owed. It is now three numbers, because "half done" was a real answer with
+			// nowhere to go and a row holding both halves was rounded to the tidier of the two.
 			for (const a_project of the_state.the_family) {
 				const the_phases = a_project.what_its_documents_say.phases;
 				if (the_phases === null) {
 					continue;
 				}
-				const the_done = the_phases.phases.filter((a_phase) => a_phase.verdict === "done").length;
-				const the_sentence = new RegExp(
-					`${the_done} of ${the_phases.phases.length} phases carry a mark saying they are done`,
+				const how_many = (a_verdict) =>
+					the_phases.phases.filter((a_phase) => a_phase.verdict === a_verdict).length;
+				// **The middle number is in the sentence only when there is one.** A project with
+				// nothing half done should not print a `0 partly` in the middle of a sentence about its
+				// backlog, so the parts are joined the way the template joins them. A project that grows
+				// a half-done row has to change this expectation, which is the point of deriving it.
+				const the_parts = [`${how_many("done")} done`];
+				if (how_many("partly") > 0) {
+					the_parts.push(`${how_many("partly")} partly`);
+				}
+				the_parts.push(
+					`${how_many("not started")} not started of ${the_phases.phases.length} in its own backlog`,
 				);
+				const the_sentence = new RegExp(the_parts.join(" · "));
 				assert.ok(
 					the_sentence.test(the_words),
-					`the page does not say that ${a_project.name} marks ${the_done} of ` +
-						`${the_phases.phases.length} phases done, in a sentence holding both numbers. A count ` +
-						"on its own, and a count welded to a word by a template line break, are the two ways " +
-						"a number on a page stops being checkable.",
+					`the page does not say that ${a_project.name} has ${how_many("done")} rows done and ` +
+						`${how_many("not started")} not started out of ${the_phases.phases.length}, in a ` +
+						"sentence holding the numbers. A count on its own, and a count welded to a word by a " +
+						"template line break, are the two ways a number on a page stops being checkable.",
 				);
 			}
 		});
@@ -298,5 +316,110 @@ describe("the tests in this directory, and where they get a state from", () => {
 			);
 		});
 	}
+});
+
+/** The page this file already built, read as markup for the assertions that are about tags. */
+const the_markup_of = () => the_markup_of_the_page_built_from_the_fixtures;
+
+/**
+ * The words of a piece of markup this page is made of.
+ *
+ * `the_words_on_the_page` takes a path and reads the file, which is the right seam for the page
+ * and the wrong one for a slice of it — reading a 40 000-character fragment off the disk is a
+ * filesystem error wearing an assertion's clothes.
+ */
+function the_words_in(a_piece_of_markup) {
+	return a_piece_of_markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+}
+
+/**
+ * The words of one project's backlog card, cut out of the page.
+ *
+ * **A card, and not a project name.** A project's name is printed at least twice — in the family
+ * card and again in the backlog — and the first one is not the card these assertions are about.
+ * Slicing from the heading to the end of its card is what makes "its own backlog" belong to it.
+ */
+function the_backlog_card_of(a_project_name) {
+	// **The section element, not the heading text.** "How they differ" is also a link in the
+	// navigation this page carries, and slicing from that occurrence takes the whole family card
+	// and most of the page with it — which is how a first version of this helper came to answer
+	// a question about a backlog with a project's licence.
+	const where_the_section_starts = the_markup_of().indexOf('<section id="differ"');
+	const where_the_section_ends = the_markup_of().indexOf('<section id="truth"', where_the_section_starts);
+	// **Both ends are checked, and a missing one is a failure rather than `-1`.** `slice(start, -1)`
+	// runs to the second-to-last character, which is nearly the whole page: every assertion below
+	// would have passed for the wrong reason, from a family card and a licence.
+	assert.notEqual(where_the_section_starts, -1, "the built page has no section with the id the backlog is in");
+	assert.notEqual(where_the_section_ends, -1, "the section after the backlog is not where this helper looks");
+	const the_section = the_markup_of().slice(where_the_section_starts, where_the_section_ends);
+	const where_the_card_starts = the_section.indexOf(a_project_name);
+	if (where_the_card_starts === -1) {
+		assert.fail(`the backlog section of the built page has no card for ${a_project_name}`);
+	}
+	const the_next_card = the_section.indexOf("<div class=\"rounded-2xl", where_the_card_starts + a_project_name.length);
+	return the_section.slice(where_the_card_starts, the_next_card === -1 ? undefined : the_next_card);
+}
+
+describe("the backlog on the page, and the halves of a row", () => {
+	// **The page's backlog block had never been built in a test.** Every fixture this repository
+	// had carried no `AGENTS.md`, so the collector read no backlog from any of them and the block
+	// was exercised only as a pure function. A block that renders nothing is a block nothing has
+	// ever looked at.
+	//
+	// `a_python_project` marks one row wholly, one row partly and two not at all;
+	// `a_rust_project` marks nothing, which is what two of the four real projects do.
+
+	it("says how many rows are done, how many are half, and how many are untouched", () => {
+		const the_reading = the_words_in(the_backlog_card_of("a_python_project"));
+
+		assert.match(
+			the_reading,
+			/1 done/,
+			"the page does not say how many of the four rows are wholly done, so a reader cannot tell " +
+				"the count from the number of rows that carry a mark somewhere in them",
+		);
+		assert.match(
+			the_reading,
+			/1 partly/,
+			"the page has no word for a row that is half done. It reported that row among the done ones " +
+				"and printed the half that is owed inside the same line as the half that is not.",
+		);
+		assert.match(the_reading, /2 not started/, "the page does not say how many rows nothing has been done on");
+	});
+
+	it("does not put a row with an owed half among the rows it calls done", () => {
+		const the_reading = the_words_in(the_backlog_card_of("a_python_project"));
+
+		assert.doesNotMatch(
+			the_reading,
+			/2 of 4[^.]{0,40}done/,
+			"the page counts two of four rows as done, and one of them says in its own words that " +
+				"exposure through MCP is not. The count and the row are the same sentence.",
+		);
+	});
+
+	it("prints the owed half on its own, so it can be read as the work that is left", () => {
+		const the_row = the_backlog_card_of("a_python_project").split("</li>").find((a_chunk) => a_chunk.includes("MCP is not"));
+
+		assert.ok(the_row, "the page does not print the row that owes the MCP exposure at all");
+		assert.doesNotMatch(
+			the_row,
+			/\bgithub\b[^<]*done/i,
+			"the done half and the word done are printed in the same element as the owed half, so the " +
+				"line reads as two claims at once and the reader has to work out which is which",
+		);
+	});
+
+	it("tells a project that marks nothing where a mark would go, rather than only that it marks nothing", () => {
+		const the_reading = the_words_in(the_backlog_card_of("a_rust_project"));
+
+		assert.match(
+			the_reading,
+			/AGENTS\.md/,
+			"the page says this project marks no phase and stops there. Two of the four real projects " +
+				"are in exactly this state, and the one thing a reader can act on — that the table is in " +
+				"AGENTS.md under a heading called Backlog — is not said.",
+		);
+	});
 });
 
