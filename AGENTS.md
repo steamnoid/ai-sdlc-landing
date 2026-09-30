@@ -160,15 +160,33 @@ cron slot a run was answering, the two runs were five and a half hours apart, an
 built out of two points by choosing which hour each one belonged to. A confident number
 nobody measured is worse than a missing one, because the missing one gets looked up.
 
-**What was measured, with the window it was measured over.** The repository was created at
-17:44 on the 28th. Between 18:17 that evening and 11:17 the next morning, seventeen of those
-hourly slots came due and **two ran** — at 23:19, two minutes past the hour, and at 05:47,
-which is not past any hour the schedule asks for.
+**What was measured, with the window it was measured over — twice, and the second time
+differed.** The first measurement was taken eighteen hours after the repository was created:
+seventeen hourly slots came due and **two ran**. It was written down as a small sample with an
+instruction to measure it again rather than believe it, and the point of writing it that way was
+to make the re-measurement a thing the next reader could do.
 
-**Nothing waited in a queue.** All fifteen runs this repository has had began in the same
-second they were created, the two scheduled ones included. So the two were not pushed back by
-a busy runner; the other fifteen hours produced nothing to push them back, and the API shows
-no run for them at all. Whatever drops them, it does not drop them from the front of a queue.
+The second window, from the 29th at 12:58 to the 30th at 08:38, gives five runs:
+
+| gap between consecutive scheduled runs | |
+|---|---|
+| 5h 41m | |
+| 4h 20m | |
+| 3h 10m | |
+| 6h 29m | |
+
+**None of them was dropped.** Every one arrived; all of them were late, by hours, and by amounts
+that do not look like a queue. So the honest reading is not "GitHub loses most of them" and not
+"the schedule is hourly" — it is that **the schedule runs roughly every four to five hours on
+this repository, and has never once run hourly in any window measured here.** The first
+measurement was not wrong, it was early: at eighteen hours old the schedule delivered two runs
+where five days later it delivers one every four to five.
+
+**One of the five failed, and it is worth saying which job.** `Keep the schedule alive` was red
+on the 08:38 run with *"the limit and the commit did not arrive"*, and it is the sixth run in a
+row that pushed a keepalive commit — a race between two runs committing to the same branch,
+caused by the bug the entry above describes. Nothing about the schedule, and everything about a
+defect the schedule happened to walk into twice.
 
 **The page says when it last read the family** — `Read from 4 of 4 repositories, 2026-09-29
 10:42 UTC` is on it, and in the sentence about what a reader may check. That is why the
@@ -194,8 +212,8 @@ Measured on consecutive runs, three minutes forty-seven cold and three minutes s
 all three caches restored — the uv tree at 77 MB, the two Rust workspaces at 192 MB, the
 node modules at 50 MB. What the cache saved was the compilation, and what the run mostly
 waits for is the four test suites actually executing. It is kept because thirty seconds every
-two hours is free, and it is written here because the estimate this repository started with
-was a guess and the sentence above is not.
+four to five hours is free, and it is written here because the estimate this repository started
+with was a guess and the sentence above is not.
 
 ---
 
