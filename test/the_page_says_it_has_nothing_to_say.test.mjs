@@ -13,7 +13,7 @@
  */
 
 import { strict as assert } from "node:assert";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -137,3 +137,44 @@ describe("the page does not read the state file at build time when it is given o
 		);
 	});
 });
+
+describe("the directory the build moves aside, and what it puts back", () => {
+	// **It put back one file out of a whole directory.** `build_the_page(at, where, { none: true })`
+	// removes `src/state` — every file in it — and then restores only `the_family.json`. So the first
+	// time this repository grew a second file in that directory, a green `npm run test:page` deleted
+	// it. Nothing was red: the run that wrote it had already finished, and the run that published it
+	// would have found the evidence gone.
+	//
+	// The build job runs `test:page` against the state that same run produced, so a helper that
+	// clears a directory and restores one file out of it is deleting the run's own work and calling
+	// it a green build.
+	it("puts back every file it moved aside, and not only the state", () => {
+		const the_directory = join(at, "src", "state");
+		mkdirSync(the_directory, { recursive: true });
+		const a_file_of_our_own = join(the_directory, "what_moved.json");
+		const there_was_one = existsSync(a_file_of_our_own);
+		const what_was_there = there_was_one ? readFileSync(a_file_of_our_own, "utf8") : null;
+		writeFileSync(a_file_of_our_own, '{"was_compared":true}\n');
+
+		try {
+			build_the_page(at, mkdtempSync(join(tmpdir(), "ai-sdlc-landing-none-")), { none: true });
+
+			assert.ok(
+				existsSync(a_file_of_our_own),
+				"building the page with no state deleted a file that had nothing to do with the state. " +
+					"`npm run test:page` runs in the build job against the state that run produced, so this " +
+					"is a green test run deleting the run's own work.",
+			);
+		} finally {
+			// **Put back whatever was there, not merely remove ours.** The first version of this test
+			// deleted the file unconditionally and was itself the thing deleting the run's evidence —
+			// which is why the fix below took two attempts to find: the helper was repaired, and the
+			// test that was testing the helper kept doing the damage.
+			rmSync(a_file_of_our_own, { force: true });
+			if (what_was_there !== null) {
+				writeFileSync(a_file_of_our_own, what_was_there);
+			}
+		}
+	});
+});
+

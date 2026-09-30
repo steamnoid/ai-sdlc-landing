@@ -13,7 +13,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const where_the_page_lands = "index.html";
@@ -36,13 +36,13 @@ const where_the_state_directory_lives = dirname(where_the_state_lives);
  */
 export function build_the_page(at, a_directory_to_build_into, what_to_do_about_the_state = {}) {
 	const the_state_file = join(at, where_the_state_lives);
-	const there_was_a_state = existsSync(the_state_file);
-	const what_was_there = there_was_a_state ? readFileSync(the_state_file, "utf8") : null;
+	const the_directory = join(at, where_the_state_directory_lives);
+	const what_was_in_the_directory = what_the_directory_holds(the_directory);
 
 	if (what_to_do_about_the_state.none === true) {
-		rmSync(join(at, where_the_state_directory_lives), { recursive: true, force: true });
+		rmSync(the_directory, { recursive: true, force: true });
 	} else if ("write" in what_to_do_about_the_state) {
-		mkdirSync(join(at, where_the_state_directory_lives), { recursive: true });
+		mkdirSync(the_directory, { recursive: true });
 		writeFileSync(the_state_file, `${JSON.stringify(what_to_do_about_the_state.write, null, "\t")}\n`);
 	}
 
@@ -57,11 +57,35 @@ export function build_the_page(at, a_directory_to_build_into, what_to_do_about_t
 		}
 		return join(a_directory_to_build_into, where_the_page_lands);
 	} finally {
-		rmSync(join(at, where_the_state_directory_lives), { recursive: true, force: true });
-		if (what_was_there !== null) {
-			mkdirSync(join(at, where_the_state_directory_lives), { recursive: true });
-			writeFileSync(the_state_file, what_was_there);
-		}
+		put_the_directory_back(the_directory, what_was_in_the_directory);
+	}
+}
+
+/**
+ * Every file in the state directory, with its contents.
+ *
+ * **The whole directory and not the state file, and this is a repair.** It moved `the_family.json`
+ * aside and put that one file back, while the file it had removed was `src/state` itself — so every
+ * other file in there was deleted by a green test run. `npm run test:page` runs in the build job
+ * against the state that job produced, so the first time this repository kept a second file beside
+ * the state, a passing test suite deleted it between the run that wrote it and the run that
+ * publishes it. Nothing was red at any point.
+ */
+function what_the_directory_holds(a_directory) {
+	if (!existsSync(a_directory)) {
+		return [];
+	}
+	return readdirSync(a_directory).map((a_name) => [a_name, readFileSync(join(a_directory, a_name), "utf8")]);
+}
+
+function put_the_directory_back(a_directory, what_was_there) {
+	rmSync(a_directory, { recursive: true, force: true });
+	if (what_was_there.length === 0) {
+		return;
+	}
+	mkdirSync(a_directory, { recursive: true });
+	for (const [a_name, what_it_held] of what_was_there) {
+		writeFileSync(join(a_directory, a_name), what_it_held);
 	}
 }
 

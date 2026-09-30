@@ -471,26 +471,42 @@ describe("what moved since the last read, which is the only thing a reader cause
 	// **Both fixtures share a state written here, because the movement is between two states and
 	// not a property of either.** `build_the_page` takes the state it is given, so a test states
 	// both readings and asks what the page says about the difference.
+	/**
+	 * Build the page with this file beside the state, and put the tree back exactly as it was.
+	 *
+	 * **The restore is the whole of this helper and it exists because of a green run.**
+	 * `npm run test:page` runs in the build job, against the state that run just produced, and the
+	 * first version of this removed `src/state/what_moved.json` to test the page built without one.
+	 * It did, and then it deleted the file out of the directory the run was holding — so the build
+	 * published one file, the page had no evidence beside it, and every test was green including
+	 * the one that had just broken it. A test that reaches into the repository's own state
+	 * directory has to put it back, the way `build_the_page` puts back the state it moves aside.
+	 */
 	const build_with = (the_moved) => {
 		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-moved-"));
 		after(() => rmSync(a_directory, { recursive: true, force: true }));
-		if (the_moved !== null) {
-			mkdirSync(join(at, "src", "state"), { recursive: true });
-			writeFileSync(join(at, "src", "state", "what_moved.json"), JSON.stringify(the_moved));
+		const the_file = join(at, "src", "state", "what_moved.json");
+		const there_was_one = existsSync(the_file);
+		const what_was_there = there_was_one ? readFileSync(the_file, "utf8") : null;
+
+		if (the_moved === null) {
+			rmSync(the_file, { force: true });
 		} else {
-			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+			mkdirSync(join(at, "src", "state"), { recursive: true });
+			writeFileSync(the_file, JSON.stringify(the_moved));
 		}
 		try {
-			// **The same state the rest of this file builds from**, read again rather than borrowed:
-			// the block above owns it in its own scope, and reaching into another block's scope is
-			// how a test ends up asserting against a state nobody can say where it came from.
 			return the_words_on_the_page(
 				build_the_page(at, a_directory, {
 					write: JSON.parse(readFileSync(what_was_collected.the_state_path, "utf8")),
 				}),
 			);
 		} finally {
-			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+			rmSync(the_file, { force: true });
+			if (what_was_there !== null) {
+				mkdirSync(join(at, "src", "state"), { recursive: true });
+				writeFileSync(the_file, what_was_there);
+			}
 		}
 	};
 
@@ -560,8 +576,14 @@ describe("what the page publishes beside itself, and whether it is everything it
 	// **Every file the build was given, and not a list of them.** A list is what went stale: it held
 	// one name, a second file arrived, and nothing failed.
 	it("publishes the file that says what moved, so the claim can be checked against it", () => {
+		// **Put back what was there**, for the reason `build_with` above gives at length: this test
+		// runs in the build job against the state that run produced, and a green run that deleted it
+		// is a green run that removed its own evidence.
+		const the_file = join(at, "src", "state", "what_moved.json");
+		const there_was_one = existsSync(the_file);
+		const what_was_there = there_was_one ? readFileSync(the_file, "utf8") : null;
 		mkdirSync(join(at, "src", "state"), { recursive: true });
-		writeFileSync(join(at, "src", "state", "what_moved.json"), JSON.stringify(THE_MOVED));
+		writeFileSync(the_file, JSON.stringify(THE_MOVED));
 		const a_directory = mkdtempSync(join(tmpdir(), "ai-sdlc-landing-publishes-"));
 		after(() => rmSync(a_directory, { recursive: true, force: true }));
 
@@ -577,7 +599,10 @@ describe("what the page publishes beside itself, and whether it is everything it
 					"beside it — so this is a claim a reader cannot check against anything.",
 			);
 		} finally {
-			rmSync(join(at, "src", "state", "what_moved.json"), { force: true });
+			rmSync(the_file, { force: true });
+			if (what_was_there !== null) {
+				writeFileSync(the_file, what_was_there);
+			}
 		}
 	});
 
