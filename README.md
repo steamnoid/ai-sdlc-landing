@@ -93,4 +93,4 @@ project, a hand-typed verdict, and a number welded to a word by a template line 
 
 ## Licence
 
-MIT. See [`LICENSE`](LICENSE).
+All Rights Reserved. See [`LICENSE`](LICENSE).
